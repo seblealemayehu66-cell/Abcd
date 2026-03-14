@@ -20,7 +20,8 @@ import notificationsRoutes from "./routes/notifications.routes.js";
 
 import adminSupportRoutes from "./routes/support.admin.routes.js";
 import walletRoutes from "./routes/wallet.routes.js";
-
+import sellerCartRoutes from "./routes/sellerCart.routes.js";
+import sellerProductRoutes from "./routes/sellerProduct.routes.js";
 
 
 
@@ -51,6 +52,8 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 
 app.use("/api/products", productRoutes);
+app.use("/api/seller-cart", sellerCartRoutes);
+app.use("/api/seller-store", sellerProductRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/user",userRoutes);
 app.use("/api/seller",sellerRoutes);
