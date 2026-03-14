@@ -1,21 +1,21 @@
 import mongoose from "mongoose";
 
 const sellerProductSchema = new mongoose.Schema({
-
-  sellerId: {
+  sellerId:{
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User"
+    ref:"User"
   },
-
-  productId: {
+  productId:{
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Product"
+    ref:"Product"
   },
+  price:Number,
+  stock:Number,
+  quantity:{
+    type:Number,
+    default:1
+  }
+},{timestamps:true}
+);
 
-  price: Number,
-
-  stock: Number,
-
-}, { timestamps: true });
-
-export default mongoose.model("SellerProduct", sellerProductSchema);
+export default mongoose.model("SellerProduct",sellerProductSchema);
