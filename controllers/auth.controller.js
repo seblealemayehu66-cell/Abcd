@@ -219,7 +219,7 @@ export const getWallet = async (req, res) => {
 // --------------------------
 export const createVirtualBuyer = async (req, res) => {
   try {
-    const { name, email, balance } = req.body;
+    const { name, email} = req.body;
 
     const existing = await User.findOne({ email });
     if (existing)
@@ -233,14 +233,13 @@ export const createVirtualBuyer = async (req, res) => {
       email,
       password: hashedPassword,
       isVirtualBuyer: true,
-     wallet: { balance: balance || 0 } 
     });
 
     await virtualBuyer.save();
 
     res.json({
       message: "Virtual buyer created",
-      buyer: { id: virtualBuyer._id, email: virtualBuyer.email, wallet: virtualBuyer.wallet, password },
+      buyer: { id: virtualBuyer._id, email: virtualBuyer.email, password },
     });
   } catch (err) {
     console.log(err);
