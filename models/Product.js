@@ -26,6 +26,7 @@ const productSchema = new mongoose.Schema({
   },
   seller: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   isPublished: { type: Boolean, default: false },
+  stock: Number
 
 }, { timestamps: true });
 
