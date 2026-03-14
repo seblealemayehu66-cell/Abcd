@@ -1,66 +1,100 @@
+// routes/sellerCart.routes.js
 import express from "express";
 import SellerCart from "../models/SellerCart.js";
 import SellerProduct from "../models/SellerProduct.js";
 import Product from "../models/Product.js";
+import { sellerAuth } from "../middleware/sellerAuth.js";
+
 const router = express.Router();
 
-// Middleware: get sellerId from req.user (you can replace with localStorage ID for dev)
-const getSellerId = (req,res,next)=>{
-  req.user = {id:req.headers["x-seller-id"]}; // for dev testing
-  next();
-};
-
-router.use(getSellerId);
+// 🔒 Protect all routes with sellerAuth
+router.use(sellerAuth);
 
 // GET seller cart
-router.get("/", async(req,res)=>{
-  const cart = await SellerCart.find({sellerId:req.user.id}).populate("productId");
-  res.json(cart);
-});
-
-// ADD to cart
-router.post("/add", async(req,res)=>{
-  const {productId} = req.body;
-  const product = await Product.findById(productId);
-
-  const existing = await SellerCart.findOne({sellerId:req.user.id, productId});
-  if(existing){
-    existing.quantity +=1;
-    await existing.save();
-    return res.json(existing);
+router.get("/", async (req, res) => {
+  try {
+    const cart = await SellerCart.find({ sellerId: req.seller._id }).populate("productId");
+    res.json(cart);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error fetching cart" });
   }
-
-  const cartItem = new SellerCart({
-    sellerId:req.user.id,
-    productId,
-    price:product.price,
-    stock:product.stock
-  });
-
-  await cartItem.save();
-  res.json(cartItem);
 });
 
-// REMOVE from cart
-router.delete("/:id", async(req,res)=>{
-  await SellerCart.findByIdAndDelete(req.params.id);
-  res.json({message:"Removed"});
+// ADD product to seller cart
+router.post("/add", async (req, res) => {
+  try {
+    const { productId } = req.body;
+
+    // Check product exists
+    const product = await Product.findById(productId);
+    if (!product) return res.status(404).json({ error: "Product not found" });
+
+    // Check if already in cart
+    let existing = await SellerCart.findOne({
+      sellerId: req.seller._id,
+      productId,
+    });
+
+    if (existing) {
+      existing.quantity += 1;
+      await existing.save();
+      return res.json(existing);
+    }
+
+    const cartItem = new SellerCart({
+      sellerId: req.seller._id,
+      productId,
+      price: product.price,
+      stock: product.stock,
+      quantity: 1,
+    });
+
+    await cartItem.save();
+    res.json(cartItem);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error adding to cart" });
+  }
+});
+
+// REMOVE item from cart
+router.delete("/:id", async (req, res) => {
+  try {
+    await SellerCart.findByIdAndDelete(req.params.id);
+    res.json({ message: "Removed from cart" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error removing from cart" });
+  }
 });
 
 // PUBLISH cart to store
-router.post("/publish", async(req,res)=>{
-  const cartItems = await SellerCart.find({sellerId:req.user.id}).populate("productId");
-  for(const item of cartItems){
-    await SellerProduct.create({
-      sellerId:req.user.id,
-      productId:item.productId._id,
-      price:item.price,
-      stock:item.stock,
-      quantity:item.quantity
-    });
+router.post("/publish", async (req, res) => {
+  try {
+    const cartItems = await SellerCart.find({ sellerId: req.seller._id }).populate("productId");
+
+    if (cartItems.length === 0)
+      return res.status(400).json({ error: "Cart is empty" });
+
+    for (const item of cartItems) {
+      await SellerProduct.create({
+        sellerId: req.seller._id,
+        productId: item.productId._id,
+        price: item.price,
+        stock: item.stock,
+        quantity: item.quantity,
+      });
+    }
+
+    // Clear cart
+    await SellerCart.deleteMany({ sellerId: req.seller._id });
+
+    res.json({ message: "Products published to store" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error publishing cart" });
   }
-  await SellerCart.deleteMany({sellerId:req.user.id});
-  res.json({message:"Published to store"});
 });
 
 export default router;
