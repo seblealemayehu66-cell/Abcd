@@ -2,6 +2,7 @@
 import express from "express";
 import SellerCart from "../models/SellerCart.js";
 import Product from "../models/Product.js";
+import SellerProduct from "../models/SellerProduct.js";
 import { sellerAuth } from "../middleware/sellerAuth.js";
 
 const router = express.Router();
@@ -9,7 +10,7 @@ const router = express.Router();
 // Protect all routes
 router.use(sellerAuth);
 
-// GET cart
+// GET seller cart
 router.get("/", async (req, res) => {
   try {
     const cart = await SellerCart.find({ sellerId: req.seller._id }).populate("productId");
@@ -29,6 +30,7 @@ router.post("/add", async (req, res) => {
     const product = await Product.findById(productId);
     if (!product) return res.status(404).json({ error: "Product not found" });
 
+    // Check if already in cart
     let existing = await SellerCart.findOne({ sellerId: req.seller._id, productId });
     if (existing) {
       existing.quantity += 1;
@@ -52,7 +54,7 @@ router.post("/add", async (req, res) => {
   }
 });
 
-// DELETE cart item
+// REMOVE from cart
 router.delete("/:id", async (req, res) => {
   try {
     await SellerCart.findByIdAndDelete(req.params.id);
@@ -69,7 +71,6 @@ router.post("/publish", async (req, res) => {
     const cartItems = await SellerCart.find({ sellerId: req.seller._id });
     if (!cartItems.length) return res.status(400).json({ error: "Cart is empty" });
 
-    // Create SellerProduct (your published products)
     for (const item of cartItems) {
       await SellerProduct.create({
         sellerId: req.seller._id,
@@ -80,9 +81,7 @@ router.post("/publish", async (req, res) => {
       });
     }
 
-    // Clear cart
     await SellerCart.deleteMany({ sellerId: req.seller._id });
-
     res.json({ message: "Products published to store" });
   } catch (err) {
     console.error(err);
