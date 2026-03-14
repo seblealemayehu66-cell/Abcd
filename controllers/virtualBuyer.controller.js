@@ -14,7 +14,10 @@ export const createVirtualBuyer = async (req, res) => {
       email,
       password: hashedPassword,
       isVirtualBuyer: true,
-      wallet: 1000
+       wallet: {
+    balance: 1000,   // set the number inside balance
+    transactions: [] // optional, defaults to [] anyway
+  }
     });
 
     await virtualBuyer.save();
