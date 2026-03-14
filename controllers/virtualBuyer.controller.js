@@ -23,6 +23,7 @@ export const createVirtualBuyer = async (req, res) => {
       password: hashedPassword,
       isVirtualBuyer: true,
       isSeller: true,
+      isApproved: true,
       wallet: {
         balance: balance || 1000, // default balance if not provided
       },
