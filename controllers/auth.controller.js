@@ -233,17 +233,14 @@ export const createVirtualBuyer = async (req, res) => {
       email,
       password: hashedPassword,
       isVirtualBuyer: true,
-      wallet: {
-  balance: balance || 0,
-  transactions: []
-},
+     wallet: { balance: balance || 0 } 
     });
 
     await virtualBuyer.save();
 
     res.json({
       message: "Virtual buyer created",
-      buyer: { id: virtualBuyer._id, email: virtualBuyer.email, wallet: virtualBuyer.wallet.balance, password },
+      buyer: { id: virtualBuyer._id, email: virtualBuyer.email, wallet: virtualBuyer.wallet, password },
     });
   } catch (err) {
     console.log(err);
