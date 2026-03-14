@@ -74,5 +74,37 @@ app.use("/api/customer", customerRoutes);
 
 
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.get("/", (req, res) => res.send("Backend is running 🚀"));
+
+// ===== 404 HANDLER =====
+app.use((req, res) => res.status(404).json({ error: "Route not found" }));
+
+// ===== DATABASE CONNECTION =====
+
+
+
+
+// ===== DATABASE CONNECTION =====
+
+
+const DB = process.env.MONGO_URL; // Railway MongoDB
+
+if (!DB) {
+  console.error("❌ MONGO_URL is not defined in Railway variables");
+  process.exit(1);
+}
+
+mongoose
+  .connect(DB)
+  .then(() => console.log("MongoDB Connected ✅ (Railway)"))
+  .catch((err) => {
+    console.error("MongoDB connection error:", err);
+    process.exit(1);
+  });
+
+// ===== START SERVER =====
+const PORT = process.env.PORT || 8080;
+
+app.listen(PORT, () =>
+  console.log(`Server running on port ${PORT} 🚀`)
+);
