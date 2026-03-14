@@ -37,7 +37,7 @@ import walletRoutes from "./routes/wallet.routes.js";
 
 
 const app = express();
-connectDB();
+
 
 app.use(cors());
 app.use(express.json());
