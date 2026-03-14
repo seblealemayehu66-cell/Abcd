@@ -7,7 +7,7 @@ import { sellerAuth } from "../middleware/sellerAuth.js";
 
 const router = express.Router();
 
-// Protect all routes
+// All routes require sellerAuth
 router.use(sellerAuth);
 
 // GET seller cart
@@ -21,7 +21,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ADD to cart
+// ADD product to cart
 router.post("/add", async (req, res) => {
   try {
     const { productId } = req.body;
@@ -54,7 +54,7 @@ router.post("/add", async (req, res) => {
   }
 });
 
-// REMOVE from cart
+// REMOVE item from cart
 router.delete("/:id", async (req, res) => {
   try {
     await SellerCart.findByIdAndDelete(req.params.id);
