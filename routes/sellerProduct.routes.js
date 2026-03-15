@@ -1,15 +1,17 @@
 import express from "express";
 import SellerProduct from "../models/SellerProduct.js";
-import { sellerAuth } from "../middleware/sellerAuth.js"; // make sure this is the JWT middleware
+import { sellerAuth } from "../middleware/sellerAuth.js";
 
 const router = express.Router();
 
 // GET seller store products
 router.get("/", sellerAuth, async (req, res) => {
   try {
-    const sellerId = req.seller._id; // <- get seller ID from middleware
+    const sellerId = req.seller._id;
 
-    const products = await SellerProduct.find({ seller: sellerId }).populate("productId");
+    const products = await SellerProduct
+      .find({ sellerId: sellerId })
+      .populate("productId");
 
     res.json(products);
   } catch (err) {
@@ -19,3 +21,4 @@ router.get("/", sellerAuth, async (req, res) => {
 });
 
 export default router;
+
