@@ -9,6 +9,7 @@ pickOrder
 } from "../controllers/order.controller.js";
 
 import authMiddleware from "../middleware/authMiddleware.js";
+import { sellerAuth } from "../middleware/sellerAuth.js";
 
 const router = express.Router();
 
@@ -16,10 +17,10 @@ router.post("/place",placeOrder);
 
 router.get("/customer/orders",authMiddleware,getCustomerOrders);
 
-router.get("/seller/orders",authMiddleware,getSellerOrders);
 
 router.get("/invoice/:id",authMiddleware,getInvoice);
 
-router.post("/pick/:id",authMiddleware,pickOrder);
+router.get("/seller/orders", sellerAuth, getSellerOrders);
+router.post("/pick/:id", sellerAuth, pickOrder); 
 
 export default router;
