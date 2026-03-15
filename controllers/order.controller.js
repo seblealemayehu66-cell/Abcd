@@ -118,33 +118,37 @@ res.status(500).json({message:"Server error"});
 
 export const pickOrder = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id)
+    const orderId = req.params.id;
+
+    // Fetch order with product & customer details
+    const order = await Order.findById(orderId)
       .populate("productId")
-      .populate("customerId");
+      .populate("customerId")
+      .populate("buyerId"); // optional if needed
 
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
 
+    // Check if order is already processed
     if (order.status !== "pending") {
       return res.status(400).json({ message: "Order already processed" });
     }
 
-    const seller = req.seller;
-
+    const seller = req.seller; // from sellerAuth middleware
     if (!seller) {
       return res.status(401).json({ message: "Seller not authenticated" });
     }
 
-    // ✅ use wallet.balance
+    // Check seller wallet
     if (seller.wallet.balance < order.price) {
       return res.status(400).json({ message: "Insufficient wallet balance" });
     }
 
-    // deduct balance
+    // Deduct wallet balance
     seller.wallet.balance -= order.price;
 
-    // add transaction record
+    // Record transaction
     seller.wallet.transactions.push({
       type: "debit",
       amount: order.price,
@@ -153,14 +157,30 @@ export const pickOrder = async (req, res) => {
 
     await seller.save();
 
-    // update order status
+    // Update order status
     order.status = "delivery";
     await order.save();
+
+    // Return invoice
+    const invoice = {
+      orderId: order._id,
+      product: {
+        name: order.productId.name,
+        sellPrice: order.price,
+        originalPrice: order.productId.price,
+      },
+      customer: {
+        name: order.customerId.name,
+        email: order.customerId.email,
+        address: order.customerId.address || "N/A",
+      },
+      sellerBalance: seller.wallet.balance,
+    };
 
     res.json({
       message: "Order picked successfully",
       order,
-      walletBalance: seller.wallet.balance,
+      invoice,
     });
 
   } catch (err) {
