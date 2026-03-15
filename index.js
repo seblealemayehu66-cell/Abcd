@@ -22,6 +22,7 @@ import adminSupportRoutes from "./routes/support.admin.routes.js";
 import walletRoutes from "./routes/wallet.routes.js";
 import sellerCartRoutes from "./routes/sellerCart.routes.js";
 import sellerProductRoutes from "./routes/sellerProduct.routes.js";
+import orderRoutes from "./routes/order.routes.js";
 
 
 
@@ -66,6 +67,7 @@ app.use("/api/support", supportRoutes);
 app.use("/api/notifications", notificationsRoutes);
 app.use("/api/wallet", walletRoutes); 
 
+app.use("/api", orderRoutes);
 
 
 
