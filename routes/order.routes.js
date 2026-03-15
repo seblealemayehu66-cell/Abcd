@@ -6,7 +6,7 @@ getCustomerOrders,
 getSellerOrders,
 getInvoice,
 pickOrder
-} from "../controllers/orderController.js";
+} from "../controllers/order.controller.js";
 
 import authMiddleware from "../middleware/authMiddleware.js";
 
