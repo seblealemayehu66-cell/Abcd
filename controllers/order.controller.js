@@ -116,39 +116,55 @@ res.status(500).json({message:"Server error"});
 
 /* PICK ORDER + WALLET DEDUCTION */
 
-export const pickOrder = async (req,res)=>{
-try{
+export const pickOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id)
+      .populate("productId")
+      .populate("customerId");
 
-const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
 
-if(!order)
-return res.status(404).json({message:"Order not found"});
+    if (order.status !== "pending") {
+      return res.status(400).json({ message: "Order already processed" });
+    }
 
-if(order.status !== "pending")
-return res.status(400).json({message:"Order already processed"});
+    const seller = req.seller;
 
-const seller = await User.findById(req.user.id);
+    if (!seller) {
+      return res.status(401).json({ message: "Seller not authenticated" });
+    }
 
-if(seller.wallet < order.buyPrice)
-return res.status(400).json({message:"Insufficient wallet balance"});
+    // ✅ use wallet.balance
+    if (seller.wallet.balance < order.price) {
+      return res.status(400).json({ message: "Insufficient wallet balance" });
+    }
 
-/* deduct wallet */
+    // deduct balance
+    seller.wallet.balance -= order.price;
 
-seller.wallet -= order.buyPrice;
-await seller.save();
+    // add transaction record
+    seller.wallet.transactions.push({
+      type: "debit",
+      amount: order.price,
+      note: `Order pickup - ${order.productId.name}`,
+    });
 
-/* update order */
+    await seller.save();
 
-order.status = "delivery";
-await order.save();
+    // update order status
+    order.status = "delivery";
+    await order.save();
 
-res.json({
-message:"Order picked successfully",
-order
-});
+    res.json({
+      message: "Order picked successfully",
+      order,
+      walletBalance: seller.wallet.balance,
+    });
 
-}catch(err){
-console.log(err);
-res.status(500).json({message:"Server error"});
-}
+  } catch (err) {
+    console.error("Pick Order Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
 };
