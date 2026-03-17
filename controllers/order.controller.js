@@ -113,116 +113,54 @@ export const getInvoice = async (req, res) => {
 ========================= */
 export const pickOrder = async (req, res) => {
   try {
-    const orderId = req.params.id;
-
-    const order = await Order.findById(orderId)
-      .populate("productId")
-      .populate("customerId")
-      .populate("buyerId");
+    const order = await Order.findById(req.params.id).populate("productId");
 
     if (!order) return res.status(404).json({ message: "Order not found" });
     if (order.status !== "pending")
-      return res.status(400).json({ message: "Order already processed" });
+      return res.status(400).json({ message: "Already picked" });
 
     const seller = req.seller;
-    if (!seller) return res.status(401).json({ message: "Seller not authenticated" });
 
+    // seller product
     const sellerProduct = await SellerProduct.findOne({
       sellerId: seller._id,
-      productId: order.productId?._id,
+      productId: order.productId._id
     });
 
     if (!sellerProduct)
       return res.status(404).json({ message: "Seller product not found" });
 
-    // Safe stock & wallet checks
-    const sellerStock = sellerProduct.stock ?? 0;
-    const globalStock = order.productId?.stock ?? 0;
-    const walletBalance = seller.wallet?.balance ?? 0;
+    if (sellerProduct.stock < order.quantity)
+      return res.status(400).json({ message: "Not enough stock" });
 
-    if (sellerStock < order.quantity) return res.status(400).json({ message: "Not enough seller stock" });
-    if (globalStock < order.quantity) return res.status(400).json({ message: "Not enough global stock" });
-    if (walletBalance < order.buyPrice) return res.status(400).json({ message: "Insufficient wallet balance" });
+    if (seller.wallet.balance < order.buyPrice)
+      return res.status(400).json({ message: "Not enough balance" });
 
-    // Deduct stock safely
-    sellerProduct.stock = sellerStock - order.quantity;
+    // deduct stock
+    sellerProduct.stock -= order.quantity;
     await sellerProduct.save();
 
-    if (order.productId) {
-      order.productId.stock = globalStock - order.quantity;
-      await order.productId.save();
-    }
-
-    // Deduct wallet safely
-    seller.wallet.balance = walletBalance - order.buyPrice;
-    seller.wallet.transactions = seller.wallet.transactions || [];
+    // deduct wallet
+    seller.wallet.balance -= order.buyPrice;
     seller.wallet.transactions.push({
       type: "debit",
       amount: order.buyPrice,
-      note: `Order pickup - ${order.productId?.name || "Product"}`,
+      note: "Order pickup"
     });
     await seller.save();
 
-    // Freeze customer money & update order
-    order.frozenAmount = order.price;
+    // update order
     order.status = "delivery";
     order.sellerId = seller._id;
-    await order.save();
-
-    res.json({ message: "Order picked successfully", order });
-  } catch (err) {
-    console.error("Pick Order Error:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
-  }
-};
-
-/* =========================
-   🚚 CONFIRM DELIVERY
-========================= */
-
-/* =========================
-   🚚 CONFIRM DELIVERY (Customer as Seller)
-========================= */
-export const confirmDelivery = async (req, res) => {
-  try {
-    const orderId = req.params.id;
-
-    // Populate productId so we can access product details
-    const order = await Order.findById(orderId).populate("productId");
-    if (!order) return res.status(404).json({ message: "Order not found" });
-
-    if (order.status !== "delivery")
-      return res.status(400).json({ message: "Order not in delivery stage" });
-
-    // Use customerId as seller
-    const seller = await User.findById(order.customerId);
-    if (!seller) return res.status(404).json({ message: "Customer/Seller not found" });
-
-    // Ensure wallet exists
-    seller.wallet = seller.wallet || { balance: 0, transactions: [] };
-
-    // Add profit to wallet
-    seller.wallet.balance += order.price;
-
-    seller.wallet.transactions.push({
-      type: "credit",
-      amount: order.price,
-      note: `Order delivered - ${order.productId?.name || "Product"}`,
-    });
-
-    await seller.save();
-
-    // Update order status
-    order.status = "delivered";
-
-    // Maintain sellerId for compatibility
-    order.sellerId = seller._id;
+    order.frozenAmount = order.price;
+    order.deliveryDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
 
     await order.save();
 
-    res.json({ message: "Order delivered successfully. Profit added to wallet.", order });
+    res.json({ message: "Order picked", order });
+
   } catch (err) {
-    console.error("Confirm Delivery Error:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
   }
 };
