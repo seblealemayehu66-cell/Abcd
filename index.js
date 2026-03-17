@@ -29,7 +29,9 @@ import sellerCartRoutes from "./routes/sellerCart.routes.js";
 import sellerProductRoutes from "./routes/sellerProduct.routes.js";
 import orderRoutes from "./routes/order.routes.js";
 
+import { startAutoDelivery } from "./utils/autoDelivery.js";
 
+startAutoDelivery();
 
 
 // Admin seller management
