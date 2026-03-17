@@ -21,6 +21,7 @@ export const placeOrder = async (req, res) => {
     if (!product) return res.status(400).json({ message: "Product not found" });
 
     const qty = quantity || 1;
+
     if (product.stock < qty)
       return res.status(400).json({ message: "Not enough product stock" });
 
@@ -33,15 +34,18 @@ export const placeOrder = async (req, res) => {
       price: product.price * qty,
       buyPrice: buyPrice * qty,
       quantity: qty,
-      status: "pending",
+      status: "pending", // ensure default status
     });
 
     await order.save();
 
-    res.json({ message: "Order placed successfully", order });
+    res.json({
+      message: "Order placed successfully",
+      order,
+    });
   } catch (err) {
     console.error("Place Order Error:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -58,7 +62,7 @@ export const getCustomerOrders = async (req, res) => {
     res.json(orders);
   } catch (err) {
     console.error("Customer Orders Error:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -75,7 +79,7 @@ export const getSellerOrders = async (req, res) => {
     res.json(orders);
   } catch (err) {
     console.error("Seller Orders Error:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -106,13 +110,12 @@ export const getInvoice = async (req, res) => {
 };
 
 /* =========================
-   🔥 PICK ORDER
+   🔥 PICK ORDER (SAFE)
 ========================= */
 export const pickOrder = async (req, res) => {
   try {
     const orderId = req.params.id;
 
-    // Populate product, customer, buyer
     const order = await Order.findById(orderId)
       .populate("productId")
       .populate("customerId")
@@ -126,40 +129,41 @@ export const pickOrder = async (req, res) => {
     const seller = req.seller;
     if (!seller) return res.status(401).json({ message: "Seller not authenticated" });
 
-    // Find seller product
+    // Safe stock check
     const sellerProduct = await SellerProduct.findOne({
       sellerId: seller._id,
       productId: order.productId?._id,
     });
 
-    if (!sellerProduct)
-      return res.status(404).json({ message: "Seller product not found" });
-
-    // Convert stock to number safely
-    const sellerStock = Number(sellerProduct.stock || 0);
-    const globalStock = Number(order.productId?.stock || 0);
+    const sellerStock = sellerProduct?.stock || 0;
+    const globalStock = order.productId?.stock || 0;
 
     if (sellerStock < order.quantity)
       return res.status(400).json({ message: "Not enough seller stock" });
+
     if (globalStock < order.quantity)
       return res.status(400).json({ message: "Not enough global stock" });
 
     // Wallet check
-    const walletBalance = Number(seller.wallet?.balance || 0);
+    const walletBalance = seller.wallet?.balance || 0;
     if (walletBalance < order.buyPrice)
       return res.status(400).json({ message: "Insufficient wallet balance" });
 
     // Deduct stock safely
-    sellerProduct.stock = sellerStock - order.quantity;
-    await sellerProduct.save();
+    if (sellerProduct) {
+      sellerProduct.stock -= order.quantity;
+      if (sellerProduct.stock < 0) sellerProduct.stock = 0;
+      await sellerProduct.save();
+    }
 
     if (order.productId) {
-      order.productId.stock = globalStock - order.quantity;
+      order.productId.stock -= order.quantity;
+      if (order.productId.stock < 0) order.productId.stock = 0;
       await order.productId.save();
     }
 
-    // Deduct wallet
-    seller.wallet.balance = walletBalance - order.buyPrice;
+    // Deduct wallet safely
+    seller.wallet.balance -= order.buyPrice;
     seller.wallet.transactions = seller.wallet.transactions || [];
     seller.wallet.transactions.push({
       type: "debit",
@@ -168,23 +172,19 @@ export const pickOrder = async (req, res) => {
     });
     await seller.save();
 
-    // Freeze customer money
+    // Freeze customer money & update order status
     order.frozenAmount = order.price;
-
-    // Update order status
     order.status = "delivery";
     order.sellerId = seller._id;
     await order.save();
 
-    res.json({
-      message:
-        "Order picked successfully. Stock deducted, wallet updated, delivery started.",
-    });
+    res.json({ message: "Order picked successfully", order });
   } catch (err) {
     console.error("Pick Order Error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 /* =========================
    🚚 CONFIRM DELIVERY
 ========================= */
@@ -194,12 +194,12 @@ export const confirmDelivery = async (req, res) => {
     const order = await Order.findById(orderId);
 
     if (!order) return res.status(404).json({ message: "Order not found" });
-    if (order.status !== "delivery") return res.status(400).json({ message: "Order not in delivery stage" });
+    if (order.status !== "delivery")
+      return res.status(400).json({ message: "Order not in delivery stage" });
 
     const seller = await User.findById(order.sellerId);
     if (!seller) return res.status(404).json({ message: "Seller not found" });
 
-    // Credit profit
     seller.wallet.balance += order.price;
     seller.wallet.transactions = seller.wallet.transactions || [];
     seller.wallet.transactions.push({
@@ -215,6 +215,6 @@ export const confirmDelivery = async (req, res) => {
     res.json({ message: "Order delivered successfully. Profit added to wallet." });
   } catch (err) {
     console.error("Confirm Delivery Error:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
