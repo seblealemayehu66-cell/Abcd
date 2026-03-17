@@ -4,7 +4,7 @@ import {
   addProduct,
   getProducts,
   getProductsByCategory,
-  publishProducts,
+  publishCart ,
   getSellerProducts
 } from "../controllers/product.controller.js";
 
@@ -21,7 +21,7 @@ router.get("/category/:categoryId", getProductsByCategory);
 
 
 // SELLER PUBLISH
-router.post("/publish", authMiddleware, publishProducts);
+router.post("/publish", authMiddleware, publishCart );
 
 
 // SELLER STORE PRODUCTS
