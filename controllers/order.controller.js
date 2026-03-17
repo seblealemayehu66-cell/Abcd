@@ -111,59 +111,63 @@ export const getInvoice = async (req, res) => {
 export const pickOrder = async (req, res) => {
   try {
     const orderId = req.params.id;
-    const seller = req.seller;
 
-    if (!seller) return res.status(401).json({ message: "Seller not authenticated" });
-
+    // Populate product, customer, buyer
     const order = await Order.findById(orderId)
       .populate("productId")
       .populate("customerId")
       .populate("buyerId");
 
     if (!order) return res.status(404).json({ message: "Order not found" });
-    if (order.status !== "pending") return res.status(400).json({ message: "Order already processed" });
 
+    if (order.status !== "pending")
+      return res.status(400).json({ message: "Order already processed" });
+
+    const seller = req.seller;
+    if (!seller) return res.status(401).json({ message: "Seller not authenticated" });
+
+    // Find seller product
     const sellerProduct = await SellerProduct.findOne({
       sellerId: seller._id,
       productId: order.productId?._id,
     });
 
-    if (!sellerProduct) return res.status(404).json({ message: "Seller product not found" });
+    if (!sellerProduct)
+      return res.status(404).json({ message: "Seller product not found" });
 
-    // Stock validation
-    // Stock validation
-const globalStock = Number(order.productId?.stock || 0);
-const sellerStock = Number(sellerProduct.stock || 0);
+    // Convert stock to number safely
+    const sellerStock = Number(sellerProduct.stock || 0);
+    const globalStock = Number(order.productId?.stock || 0);
 
-if (sellerStock < order.quantity)
-  return res.status(400).json({ message: "Not enough seller stock" });
+    if (sellerStock < order.quantity)
+      return res.status(400).json({ message: "Not enough seller stock" });
+    if (globalStock < order.quantity)
+      return res.status(400).json({ message: "Not enough global stock" });
 
-if (globalStock < order.quantity)
-  return res.status(400).json({ message: "Not enough global stock" });
+    // Wallet check
+    const walletBalance = Number(seller.wallet?.balance || 0);
+    if (walletBalance < order.buyPrice)
+      return res.status(400).json({ message: "Insufficient wallet balance" });
 
-// Wallet validation
-const walletBalance = Number(seller.wallet?.balance || 0);
-if (walletBalance < order.buyPrice)
-  return res.status(400).json({ message: "Insufficient wallet balance" });
+    // Deduct stock safely
+    sellerProduct.stock = sellerStock - order.quantity;
+    await sellerProduct.save();
 
-// Deduct stock safely
-sellerProduct.stock = sellerStock - order.quantity;
-await sellerProduct.save();
+    if (order.productId) {
+      order.productId.stock = globalStock - order.quantity;
+      await order.productId.save();
+    }
 
-if (order.productId) {
-  order.productId.stock = globalStock - order.quantity;
-  await order.productId.save();
-}
+    // Deduct wallet
+    seller.wallet.balance = walletBalance - order.buyPrice;
+    seller.wallet.transactions = seller.wallet.transactions || [];
+    seller.wallet.transactions.push({
+      type: "debit",
+      amount: order.buyPrice,
+      note: `Order pickup - ${order.productId?.name || "Product"}`,
+    });
+    await seller.save();
 
-// Deduct wallet safely
-seller.wallet.balance = walletBalance - order.buyPrice;
-seller.wallet.transactions = seller.wallet.transactions || [];
-seller.wallet.transactions.push({
-  type: "debit",
-  amount: order.buyPrice,
-  note: `Order pickup - ${order.productId?.name || "Product"}`,
-});
-await seller.save();
     // Freeze customer money
     order.frozenAmount = order.price;
 
@@ -172,13 +176,15 @@ await seller.save();
     order.sellerId = seller._id;
     await order.save();
 
-    res.json({ message: "Order picked successfully. Stock deducted, wallet updated, delivery started." });
+    res.json({
+      message:
+        "Order picked successfully. Stock deducted, wallet updated, delivery started.",
+    });
   } catch (err) {
     console.error("Pick Order Error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
-
 /* =========================
    🚚 CONFIRM DELIVERY
 ========================= */
