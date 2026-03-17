@@ -179,46 +179,50 @@ export const pickOrder = async (req, res) => {
 /* =========================
    🚚 CONFIRM DELIVERY
 ========================= */
+
+/* =========================
+   🚚 CONFIRM DELIVERY (Customer as Seller)
+========================= */
 export const confirmDelivery = async (req, res) => {
   try {
     const orderId = req.params.id;
 
-    // Fetch the order and populate sellerId
+    // Find the order
     const order = await Order.findById(orderId);
     if (!order) return res.status(404).json({ message: "Order not found" });
-    if (order.status !== "delivery")
+
+    // Only allow confirming delivery if status is 'delivery'
+    if (order.status !== "delivery") {
       return res.status(400).json({ message: "Order not in delivery stage" });
+    }
 
-    // If sellerId is missing, throw clear error
-    if (!order.sellerId)
-      return res.status(400).json({
-        message:
-          "Cannot confirm delivery: sellerId missing. Pick order first or fix the order data.",
-      });
+    // Use customerId as seller
+    const seller = await User.findById(order.customerId);
+    if (!seller) return res.status(404).json({ message: "Customer/Seller not found" });
 
-    // Fetch seller
-    const seller = await User.findById(order.sellerId);
-    if (!seller)
-      return res
-        .status(404)
-        .json({ message: "Seller not found. Possibly deleted from database." });
-
-    // Add money to seller wallet
+    // Make sure wallet exists
     seller.wallet = seller.wallet || { balance: 0, transactions: [] };
+
+    // Add profit to wallet
     seller.wallet.balance += order.price;
+
     seller.wallet.transactions.push({
       type: "credit",
       amount: order.price,
-      note: `Order delivered profit - ${order.productId}`,
+      note: `Order delivered - ${order.productId}`,
     });
 
     await seller.save();
 
-    // Update order status to delivered
+    // Update order status
     order.status = "delivered";
+
+    // Assign sellerId to maintain compatibility (optional)
+    order.sellerId = seller._id;
+
     await order.save();
 
-    res.json({ message: "Order delivered successfully. Profit added to wallet." });
+    res.json({ message: "Order delivered successfully. Profit added to wallet.", order });
   } catch (err) {
     console.error("Confirm Delivery Error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
