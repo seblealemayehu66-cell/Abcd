@@ -9,6 +9,8 @@ import productRoutes from "./routes/product.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
+import newsRoutes from "./routes/news.routes.js";
+
 
 import sellerRoutes from "./routes/seller.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
@@ -68,7 +70,7 @@ app.use("/api/notifications", notificationsRoutes);
 app.use("/api/wallet", walletRoutes); 
 
 app.use("/api", orderRoutes);
-
+app.use("/api", newsRoutes);
 
 
 
