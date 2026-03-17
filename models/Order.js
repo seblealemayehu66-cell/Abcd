@@ -12,6 +12,7 @@ enum:["pending","picked","delivery","completed"],
 default:"pending"
 },
 
+quantity: { type: Number, required: true, default: 1 },
 price:{type:Number,required:true}, // sell price
 buyPrice:{type:Number,required:true} // company price
 },
