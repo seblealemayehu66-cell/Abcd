@@ -4,12 +4,12 @@ import {
   updateProfile,
   updateShop,
 } from "../controllers/userController.js";
-import { protect } from "../middleware/authMiddleware.js";
+import { authMiddleware } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.get("/profile", protect, getProfile);
-router.put("/profile", protect, updateProfile);
-router.put("/shop", protect, updateShop);
+router.get("/profile", authMiddleware, getProfile);
+router.put("/profile", authMiddleware, updateProfile);
+router.put("/shop", authMiddleware, updateShop);
 
 export default router;
