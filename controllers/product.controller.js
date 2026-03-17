@@ -3,12 +3,10 @@ import SellerProduct from "../models/SellerProduct.js";
 import cloudinary from "../config/cloudinary.js";
 
 
-// ADD PRODUCT (ADMIN CATALOG)
+// ✅ ADD PRODUCT (ADMIN CATALOG)
 export const addProduct = async (req, res) => {
-
   try {
-
-    const { name, price, description, category,stock } = req.body;
+    const { name, price, description, category, stock } = req.body;
 
     if (!req.file) {
       return res.status(400).json({ message: "Image required" });
@@ -21,6 +19,7 @@ export const addProduct = async (req, res) => {
       price,
       description,
       category,
+      stock: stock || 0, // ✅ important
       image: result.secure_url
     });
 
@@ -29,40 +28,28 @@ export const addProduct = async (req, res) => {
     res.json(product);
 
   } catch (error) {
-
     console.log(error);
     res.status(500).json({ message: "Server Error" });
-
   }
-
 };
 
 
 
-// GET ALL CATALOG PRODUCTS
+// ✅ GET ALL PRODUCTS
 export const getProducts = async (req, res) => {
-
   try {
-
     const products = await Product.find().populate("category");
-
     res.json(products);
-
   } catch (error) {
-
     res.status(500).json({ message: "Server error" });
-
   }
-
 };
 
 
 
-// GET PRODUCTS BY CATEGORY
+// ✅ GET BY CATEGORY
 export const getProductsByCategory = async (req, res) => {
-
   try {
-
     const { categoryId } = req.params;
 
     const products = await Product
@@ -72,22 +59,16 @@ export const getProductsByCategory = async (req, res) => {
     res.json(products);
 
   } catch (error) {
-
     res.status(500).json({ message: "Server error" });
-
   }
-
 };
 
 
 
-// SELLER BATCH PUBLISH PRODUCTS
+// ✅ SELLER PUBLISH PRODUCTS (FIXED 🔥)
 export const publishProducts = async (req, res) => {
-
   try {
-
     const sellerId = req.user.id;
-
     const { productIds } = req.body;
 
     if (!productIds || productIds.length === 0) {
@@ -98,38 +79,52 @@ export const publishProducts = async (req, res) => {
       _id: { $in: productIds }
     });
 
-    const sellerProducts = products.map((product) => ({
-      sellerId,
-      productId: product._id,
-      price: product.price,
-      stock: product.stock || 10
-    }));
+    const newSellerProducts = [];
 
-    await SellerProduct.insertMany(sellerProducts);
+    for (let product of products) {
+
+      // ❌ prevent duplicate
+      const existing = await SellerProduct.findOne({
+        sellerId,
+        productId: product._id
+      });
+
+      if (existing) continue;
+
+      // ❌ prevent zero stock
+      if (!product.stock || product.stock <= 0) continue;
+
+      newSellerProducts.push({
+        sellerId,
+        productId: product._id,
+        price: product.price,
+        stock: product.stock // ✅ real stock
+      });
+    }
+
+    if (newSellerProducts.length === 0) {
+      return res.status(400).json({
+        message: "No valid products to publish"
+      });
+    }
+
+    await SellerProduct.insertMany(newSellerProducts);
 
     res.json({
       message: "Products successfully published to your store"
     });
 
   } catch (error) {
-
     console.log("Publish Error:", error);
-
-    res.status(500).json({
-      message: "Publish failed"
-    });
-
+    res.status(500).json({ message: "Publish failed" });
   }
-
 };
 
 
 
-// GET SELLER STORE PRODUCTS
+// ✅ GET SELLER PRODUCTS
 export const getSellerProducts = async (req, res) => {
-
   try {
-
     const sellerId = req.user.id;
 
     const products = await SellerProduct
@@ -139,9 +134,6 @@ export const getSellerProducts = async (req, res) => {
     res.json(products);
 
   } catch (error) {
-
     res.status(500).json({ message: "Server error" });
-
   }
-
 };
