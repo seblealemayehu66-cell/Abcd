@@ -66,57 +66,54 @@ export const getProductsByCategory = async (req, res) => {
 
 
 // ✅ SELLER PUBLISH PRODUCTS (FIXED 🔥)
-export const publishProducts = async (req, res) => {
+export const publishCart = async (req, res) => {
   try {
-    const sellerId = req.user.id;
-    const { productIds } = req.body;
+    const seller = req.seller;
 
-    if (!productIds || productIds.length === 0) {
-      return res.status(400).json({ message: "No products selected" });
+    if (!seller) {
+      return res.status(401).json({ message: "Seller not authenticated" });
     }
 
-    const products = await Product.find({
-      _id: { $in: productIds }
-    });
+    const sellerId = seller._id;
 
-    const newSellerProducts = [];
+    const cartItems = await SellerCart.find({ sellerId });
 
-    for (let product of products) {
+    if (!cartItems.length) {
+      return res.status(400).json({ message: "Cart is empty" });
+    }
 
-      // ❌ prevent duplicate
+    for (let item of cartItems) {
+      if (!item.productId) continue;
+
       const existing = await SellerProduct.findOne({
         sellerId,
-        productId: product._id
+        productId: item.productId,
       });
 
-      if (existing) continue;
-
-      // ❌ prevent zero stock
-      if (!product.stock || product.stock <= 0) continue;
-
-      newSellerProducts.push({
-        sellerId,
-        productId: product._id,
-        price: product.price,
-        stock: product.stock // ✅ real stock
-      });
+      if (existing) {
+        existing.stock += item.stock || 0;
+        existing.price = item.price || existing.price;
+        await existing.save();
+      } else {
+        await SellerProduct.create({
+          sellerId,
+          productId: item.productId,
+          price: item.price || 0,
+          stock: item.stock || 0,
+        });
+      }
     }
 
-    if (newSellerProducts.length === 0) {
-      return res.status(400).json({
-        message: "No valid products to publish"
-      });
-    }
+    await SellerCart.deleteMany({ sellerId });
 
-    await SellerProduct.insertMany(newSellerProducts);
+    res.json({ message: "Products published successfully" });
 
-    res.json({
-      message: "Products successfully published to your store"
+  } catch (err) {
+    console.error("🔥 Publish Cart Error FULL:", err);
+    res.status(500).json({
+      message: "Server error publishing cart",
+      error: err.message,
     });
-
-  } catch (error) {
-    console.log("Publish Error:", error);
-    res.status(500).json({ message: "Publish failed" });
   }
 };
 
