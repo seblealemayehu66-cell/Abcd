@@ -187,20 +187,18 @@ export const confirmDelivery = async (req, res) => {
   try {
     const orderId = req.params.id;
 
-    // Find the order
-    const order = await Order.findById(orderId);
+    // Populate productId so we can access product details
+    const order = await Order.findById(orderId).populate("productId");
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // Only allow confirming delivery if status is 'delivery'
-    if (order.status !== "delivery") {
+    if (order.status !== "delivery")
       return res.status(400).json({ message: "Order not in delivery stage" });
-    }
 
     // Use customerId as seller
     const seller = await User.findById(order.customerId);
     if (!seller) return res.status(404).json({ message: "Customer/Seller not found" });
 
-    // Make sure wallet exists
+    // Ensure wallet exists
     seller.wallet = seller.wallet || { balance: 0, transactions: [] };
 
     // Add profit to wallet
@@ -209,7 +207,7 @@ export const confirmDelivery = async (req, res) => {
     seller.wallet.transactions.push({
       type: "credit",
       amount: order.price,
-      note: `Order delivered - ${order.productId}`,
+      note: `Order delivered - ${order.productId?.name || "Product"}`,
     });
 
     await seller.save();
@@ -217,7 +215,7 @@ export const confirmDelivery = async (req, res) => {
     // Update order status
     order.status = "delivered";
 
-    // Assign sellerId to maintain compatibility (optional)
+    // Maintain sellerId for compatibility
     order.sellerId = seller._id;
 
     await order.save();
