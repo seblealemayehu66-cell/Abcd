@@ -28,6 +28,6 @@ const sellerProductSchema = new mongoose.Schema(
 );
 
 // جلوگیری از duplicate (same seller + same product)
-sellerProductSchema.index({ sellerId: 1, productId: 1 }, { unique: true });
+
 
 export default mongoose.model("SellerProduct", sellerProductSchema);
