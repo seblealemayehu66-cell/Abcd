@@ -135,25 +135,31 @@ export const pickOrder = async (req, res) => {
       productId: order.productId?._id,
     });
 
-    const sellerStock = sellerProduct?.stock || 0;
-    const globalStock = order.productId?.stock || 0;
+ const sellerStock = sellerProduct?.stock ?? 0;
+const globalStock = order.productId?.stock ?? 0;
+const walletBalance = seller.wallet?.balance ?? 0;
 
-    if (sellerStock < order.quantity)
-      return res.status(400).json({ message: "Not enough seller stock" });
+if (sellerStock < order.quantity) return res.status(400).json({ message: "Not enough seller stock" });
+if (globalStock < order.quantity) return res.status(400).json({ message: "Not enough global stock" });
+if (walletBalance < order.buyPrice) return res.status(400).json({ message: "Insufficient wallet balance" });
 
-    if (globalStock < order.quantity)
-      return res.status(400).json({ message: "Not enough global stock" });
+// Deduct safely
+sellerProduct.stock = sellerStock - order.quantity;
+await sellerProduct.save();
 
-    // Wallet check
-    const walletBalance = seller.wallet?.balance || 0;
-    if (walletBalance < order.buyPrice)
-      return res.status(400).json({ message: "Insufficient wallet balance" });
+if (order.productId) {
+    order.productId.stock = globalStock - order.quantity;
+    await order.productId.save();
+}
 
-    // Deduct stock safely
-    if (sellerProduct) {
-      sellerProduct.stock -= order.quantity;
-      if (sellerProduct.stock < 0) sellerProduct.stock = 0;
-      await sellerProduct.save();
+seller.wallet.balance = walletBalance - order.buyPrice;
+seller.wallet.transactions = seller.wallet.transactions || [];
+seller.wallet.transactions.push({
+    type: "debit",
+    amount: order.buyPrice,
+    note: `Order pickup - ${order.productId?.name || "Product"}`,
+});
+await seller.save();
     }
 
     if (order.productId) {
