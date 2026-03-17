@@ -1,21 +1,33 @@
 import mongoose from "mongoose";
 
-const sellerProductSchema = new mongoose.Schema({
-  sellerId:{
-    type: mongoose.Schema.Types.ObjectId,
-    ref:"User"
+const sellerProductSchema = new mongoose.Schema(
+  {
+    sellerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true
+    },
+
+    productId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+      required: true
+    },
+
+    price: {
+      type: Number,
+      required: true
+    },
+
+    stock: {
+      type: Number,
+      default: 0
+    }
   },
-  productId:{
-    type: mongoose.Schema.Types.ObjectId,
-    ref:"Product"
-  },
-  price:Number,
-  stock:Number,
-  quantity:{
-    type:Number,
-    default:1
-  }
-},{timestamps:true}
+  { timestamps: true }
 );
 
-export default mongoose.model("SellerProduct",sellerProductSchema);
+// جلوگیری از duplicate (same seller + same product)
+sellerProductSchema.index({ sellerId: 1, productId: 1 }, { unique: true });
+
+export default mongoose.model("SellerProduct", sellerProductSchema);
