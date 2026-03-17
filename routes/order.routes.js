@@ -5,7 +5,7 @@ import {
   getSellerOrders,
   getInvoice,
   pickOrder,
-  confirmDelivery, // add this
+   // add this
 } from "../controllers/order.controller.js";
 
 import authMiddleware from "../middleware/authMiddleware.js";
@@ -25,6 +25,6 @@ router.get("/invoice/:id", authMiddleware, getInvoice);
 // Seller routes
 router.get("/seller/orders", sellerAuth, getSellerOrders);
 router.post("/pick/:id", sellerAuth, pickOrder); // pickup order
-router.post("/deliver/:id", sellerAuth, confirmDelivery); // confirm delivery
+
 
 export default router;
