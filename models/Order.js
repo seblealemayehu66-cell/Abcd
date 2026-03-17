@@ -2,21 +2,29 @@ import mongoose from "mongoose";
 
 const orderSchema = new mongoose.Schema(
 {
-buyerId:{type:mongoose.Schema.Types.ObjectId,ref:"User",required:true},
-customerId:{type:mongoose.Schema.Types.ObjectId,ref:"User",required:true},
-productId:{type:mongoose.Schema.Types.ObjectId,ref:"Product",required:true},
+  buyerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  customerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
 
-status:{
-type:String,
-enum:["pending","picked","delivery","completed"],
-default:"pending"
-},
+  sellerId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
 
-quantity: { type: Number, required: true, default: 1 },
-price:{type:Number,required:true}, // sell price
-buyPrice:{type:Number,required:true} // company price
+  quantity: { type: Number, default: 1 },
+
+  status: {
+    type: String,
+    enum: ["pending", "delivery", "completed"],
+    default: "pending"
+  },
+
+  price: { type: Number, required: true },
+  buyPrice: { type: Number, required: true },
+
+  frozenAmount: { type: Number, default: 0 },
+  deliveryDate: Date,
+  isPaid: { type: Boolean, default: false }
+
 },
-{timestamps:true}
+{ timestamps: true }
 );
 
-export default mongoose.model("Order",orderSchema);
+export default mongoose.model("Order", orderSchema);
