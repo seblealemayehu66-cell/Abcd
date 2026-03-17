@@ -33,18 +33,15 @@ export const placeOrder = async (req, res) => {
       price: product.price * qty,
       buyPrice: buyPrice * qty,
       quantity: qty,
-      status: "pending", // ensure default status
+      status: "pending",
     });
 
     await order.save();
 
-    res.json({
-      message: "Order placed successfully",
-      order,
-    });
+    res.json({ message: "Order placed successfully", order });
   } catch (err) {
     console.error("Place Order Error:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
@@ -61,7 +58,7 @@ export const getCustomerOrders = async (req, res) => {
     res.json(orders);
   } catch (err) {
     console.error("Customer Orders Error:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
@@ -78,7 +75,7 @@ export const getSellerOrders = async (req, res) => {
     res.json(orders);
   } catch (err) {
     console.error("Seller Orders Error:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
@@ -109,11 +106,14 @@ export const getInvoice = async (req, res) => {
 };
 
 /* =========================
-   🔥 PICK ORDER (MAIN LOGIC)
+   🔥 PICK ORDER
 ========================= */
 export const pickOrder = async (req, res) => {
   try {
     const orderId = req.params.id;
+    const seller = req.seller;
+
+    if (!seller) return res.status(401).json({ message: "Seller not authenticated" });
 
     const order = await Order.findById(orderId)
       .populate("productId")
@@ -121,34 +121,26 @@ export const pickOrder = async (req, res) => {
       .populate("buyerId");
 
     if (!order) return res.status(404).json({ message: "Order not found" });
-    if (order.status !== "pending")
-      return res.status(400).json({ message: "Order already processed" });
-
-    const seller = req.seller;
-    if (!seller) return res.status(401).json({ message: "Seller not authenticated" });
+    if (order.status !== "pending") return res.status(400).json({ message: "Order already processed" });
 
     const sellerProduct = await SellerProduct.findOne({
       sellerId: seller._id,
       productId: order.productId?._id,
     });
 
-    if (!sellerProduct)
-      return res.status(404).json({ message: "Seller product not found" });
+    if (!sellerProduct) return res.status(404).json({ message: "Seller product not found" });
 
-    // ✅ Stock validation
-    if ((sellerProduct.stock || 0) < order.quantity)
-      return res.status(400).json({ message: "Not enough seller stock" });
+    // Stock validation
+    const globalStock = order.productId?.stock || 0;
+    const sellerStock = sellerProduct.stock || 0;
+    if (sellerStock < order.quantity) return res.status(400).json({ message: "Not enough seller stock" });
+    if (globalStock < order.quantity) return res.status(400).json({ message: "Not enough global stock" });
 
-    if ((order.productId?.stock || 0) < order.quantity)
-      return res.status(400).json({ message: "Not enough global stock" });
+    // Wallet validation
+    const walletBalance = seller.wallet?.balance || 0;
+    if (walletBalance < order.buyPrice) return res.status(400).json({ message: "Insufficient wallet balance" });
 
-    // ✅ Wallet validation
-    if ((seller.wallet?.balance || 0) < order.buyPrice)
-      return res.status(400).json({ message: "Insufficient wallet balance" });
-
-    // =========================
-    // ✅ DEDUCT STOCK
-    // =========================
+    // Deduct stock
     sellerProduct.stock -= order.quantity;
     await sellerProduct.save();
 
@@ -157,9 +149,7 @@ export const pickOrder = async (req, res) => {
       await order.productId.save();
     }
 
-    // =========================
-    // 💰 DEDUCT WALLET (BUY COST)
-    // =========================
+    // Deduct wallet
     seller.wallet.balance -= order.buyPrice;
     seller.wallet.transactions = seller.wallet.transactions || [];
     seller.wallet.transactions.push({
@@ -169,21 +159,15 @@ export const pickOrder = async (req, res) => {
     });
     await seller.save();
 
-    // =========================
-    // 🔒 FREEZE CUSTOMER MONEY
-    // =========================
+    // Freeze customer money
     order.frozenAmount = order.price;
 
-    // =========================
-    // 🚚 UPDATE STATUS
-    // =========================
+    // Update order status
     order.status = "delivery";
     order.sellerId = seller._id;
     await order.save();
 
-    res.json({
-      message: "Order picked successfully. Stock deducted, wallet updated, delivery started.",
-    });
+    res.json({ message: "Order picked successfully. Stock deducted, wallet updated, delivery started." });
   } catch (err) {
     console.error("Pick Order Error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
@@ -199,14 +183,12 @@ export const confirmDelivery = async (req, res) => {
     const order = await Order.findById(orderId);
 
     if (!order) return res.status(404).json({ message: "Order not found" });
-    if (order.status !== "delivery")
-      return res.status(400).json({ message: "Order not in delivery stage" });
+    if (order.status !== "delivery") return res.status(400).json({ message: "Order not in delivery stage" });
 
     const seller = await User.findById(order.sellerId);
     if (!seller) return res.status(404).json({ message: "Seller not found" });
 
-    const profit = order.price - order.buyPrice;
-
+    // Credit profit
     seller.wallet.balance += order.price;
     seller.wallet.transactions = seller.wallet.transactions || [];
     seller.wallet.transactions.push({
@@ -222,6 +204,6 @@ export const confirmDelivery = async (req, res) => {
     res.json({ message: "Order delivered successfully. Profit added to wallet." });
   } catch (err) {
     console.error("Confirm Delivery Error:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
