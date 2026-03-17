@@ -104,34 +104,29 @@ res.status(500).json({message:"Server error"});
 /* =========================
    ✅ GET INVOICE
 ========================= */
-export const getInvoice = async (req,res)=>{
-try{
+export const getInvoice = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id)
+      .populate("productId")
+      .populate("customerId", "name email");
 
-const order = await Order.findById(req.params.id)
-.populate("productId")
-.populate("customerId","name email");
+    if (!order) return res.status(404).json({ message: "Order not found" });
 
-if(!order)
-return res.status(404).json({message:"Order not found"});
+    res.json({
+      orderId: order._id,
+      product: order.productId?.name || "Product removed",
+      image: order.productId?.image || "",
+      customer: order.customerId || {},
+      sellPrice: order.price || 0,
+      buyPrice: order.buyPrice || 0,
+      profit: (order.price || 0) - (order.buyPrice || 0)
+    });
 
-res.json({
-orderId:order._id,
-product:order.productId.name,
-image:order.productId.image,
-customer:order.customerId,
-sellPrice:order.price,
-buyPrice:order.buyPrice,
-profit:order.price - order.buyPrice
-});
-
-}catch(err){
-console.log(err);
-res.status(500).json({message:"Server error"});
-}
+  } catch (err) {
+    console.log("Get Invoice Error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
 };
-
-
-
 /* =========================
    🔥 PICK ORDER (MAIN LOGIC)
 ========================= */
