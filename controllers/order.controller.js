@@ -21,7 +21,6 @@ export const placeOrder = async (req, res) => {
     if (!product) return res.status(400).json({ message: "Product not found" });
 
     const qty = quantity || 1;
-
     if (product.stock < qty)
       return res.status(400).json({ message: "Not enough product stock" });
 
@@ -34,7 +33,7 @@ export const placeOrder = async (req, res) => {
       price: product.price * qty,
       buyPrice: buyPrice * qty,
       quantity: qty,
-      status: "pending", // ensure default status
+      status: "pending",
     });
 
     await order.save();
@@ -122,54 +121,40 @@ export const pickOrder = async (req, res) => {
       .populate("buyerId");
 
     if (!order) return res.status(404).json({ message: "Order not found" });
-
     if (order.status !== "pending")
       return res.status(400).json({ message: "Order already processed" });
 
     const seller = req.seller;
     if (!seller) return res.status(401).json({ message: "Seller not authenticated" });
 
-    // Safe stock check
     const sellerProduct = await SellerProduct.findOne({
       sellerId: seller._id,
       productId: order.productId?._id,
     });
 
- const sellerStock = sellerProduct?.stock ?? 0;
-const globalStock = order.productId?.stock ?? 0;
-const walletBalance = seller.wallet?.balance ?? 0;
+    if (!sellerProduct)
+      return res.status(404).json({ message: "Seller product not found" });
 
-if (sellerStock < order.quantity) return res.status(400).json({ message: "Not enough seller stock" });
-if (globalStock < order.quantity) return res.status(400).json({ message: "Not enough global stock" });
-if (walletBalance < order.buyPrice) return res.status(400).json({ message: "Insufficient wallet balance" });
+    // Safe stock & wallet checks
+    const sellerStock = sellerProduct.stock ?? 0;
+    const globalStock = order.productId?.stock ?? 0;
+    const walletBalance = seller.wallet?.balance ?? 0;
 
-// Deduct safely
-sellerProduct.stock = sellerStock - order.quantity;
-await sellerProduct.save();
+    if (sellerStock < order.quantity) return res.status(400).json({ message: "Not enough seller stock" });
+    if (globalStock < order.quantity) return res.status(400).json({ message: "Not enough global stock" });
+    if (walletBalance < order.buyPrice) return res.status(400).json({ message: "Insufficient wallet balance" });
 
-if (order.productId) {
-    order.productId.stock = globalStock - order.quantity;
-    await order.productId.save();
-}
-
-seller.wallet.balance = walletBalance - order.buyPrice;
-seller.wallet.transactions = seller.wallet.transactions || [];
-seller.wallet.transactions.push({
-    type: "debit",
-    amount: order.buyPrice,
-    note: `Order pickup - ${order.productId?.name || "Product"}`,
-});
-await seller.save();
-    }
+    // Deduct stock safely
+    sellerProduct.stock = sellerStock - order.quantity;
+    await sellerProduct.save();
 
     if (order.productId) {
-      order.productId.stock -= order.quantity;
-      if (order.productId.stock < 0) order.productId.stock = 0;
+      order.productId.stock = globalStock - order.quantity;
       await order.productId.save();
     }
 
     // Deduct wallet safely
-    seller.wallet.balance -= order.buyPrice;
+    seller.wallet.balance = walletBalance - order.buyPrice;
     seller.wallet.transactions = seller.wallet.transactions || [];
     seller.wallet.transactions.push({
       type: "debit",
@@ -178,7 +163,7 @@ await seller.save();
     });
     await seller.save();
 
-    // Freeze customer money & update order status
+    // Freeze customer money & update order
     order.frozenAmount = order.price;
     order.status = "delivery";
     order.sellerId = seller._id;
