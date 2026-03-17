@@ -1,54 +1,46 @@
 import User from "../models/User.js";
 
-// ✅ GET PROFILE
+// GET PROFILE
 export const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select("-password");
+    const user = await User.findById(req.user.id); // req.user comes from protect middleware
+    if (!user) return res.status(404).json({ message: "User not found" });
+
     res.json(user);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// ✅ UPDATE PROFILE
+// UPDATE PROFILE
 export const updateProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (user) {
-      user.name = req.body.name || user.name;
-      user.email = req.body.email || user.email;
-      user.avatar = req.body.avatar || user.avatar;
+    const { name, email, avatar } = req.body;
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (avatar) user.avatar = avatar;
 
-      const updated = await user.save();
-      res.json(updated);
-    } else {
-      res.status(404).json({ message: "User not found" });
-    }
+    await user.save();
+    res.json(user);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// ✅ UPDATE SHOP
+// UPDATE SHOP
 export const updateShop = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
-
+    const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    user.shop = {
-      ...user.shop,
-      name: req.body.name,
-      photo: req.body.photo,
-      contact: req.body.contact,
-      address: req.body.address,
-    };
-
+    user.shop = { ...user.shop, ...req.body }; // merge new fields
     user.isSeller = true;
 
-    const updated = await user.save();
-    res.json(updated);
+    await user.save();
+    res.json(user);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
