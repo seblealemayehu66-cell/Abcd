@@ -8,7 +8,7 @@ export const addProduct = async (req, res) => {
 
   try {
 
-    const { name, price, description, category } = req.body;
+    const { name, price, description, category,stock } = req.body;
 
     if (!req.file) {
       return res.status(400).json({ message: "Image required" });
