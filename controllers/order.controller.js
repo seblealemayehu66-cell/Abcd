@@ -201,6 +201,7 @@ export const confirmDelivery = async (req, res) => {
     await seller.save();
 
     order.status = "delivered";
+   order.sellerId = seller._id;
     await order.save();
 
     res.json({ message: "Order delivered successfully. Profit added to wallet." });
