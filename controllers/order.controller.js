@@ -131,34 +131,39 @@ export const pickOrder = async (req, res) => {
     if (!sellerProduct) return res.status(404).json({ message: "Seller product not found" });
 
     // Stock validation
-    const globalStock = order.productId?.stock || 0;
-    const sellerStock = sellerProduct.stock || 0;
-    if (sellerStock < order.quantity) return res.status(400).json({ message: "Not enough seller stock" });
-    if (globalStock < order.quantity) return res.status(400).json({ message: "Not enough global stock" });
+    // Stock validation
+const globalStock = Number(order.productId?.stock || 0);
+const sellerStock = Number(sellerProduct.stock || 0);
 
-    // Wallet validation
-    const walletBalance = seller.wallet?.balance || 0;
-    if (walletBalance < order.buyPrice) return res.status(400).json({ message: "Insufficient wallet balance" });
+if (sellerStock < order.quantity)
+  return res.status(400).json({ message: "Not enough seller stock" });
 
-    // Deduct stock
-    sellerProduct.stock -= order.quantity;
-    await sellerProduct.save();
+if (globalStock < order.quantity)
+  return res.status(400).json({ message: "Not enough global stock" });
 
-    if (order.productId) {
-      order.productId.stock -= order.quantity;
-      await order.productId.save();
-    }
+// Wallet validation
+const walletBalance = Number(seller.wallet?.balance || 0);
+if (walletBalance < order.buyPrice)
+  return res.status(400).json({ message: "Insufficient wallet balance" });
 
-    // Deduct wallet
-    seller.wallet.balance -= order.buyPrice;
-    seller.wallet.transactions = seller.wallet.transactions || [];
-    seller.wallet.transactions.push({
-      type: "debit",
-      amount: order.buyPrice,
-      note: `Order pickup - ${order.productId?.name || "Product"}`,
-    });
-    await seller.save();
+// Deduct stock safely
+sellerProduct.stock = sellerStock - order.quantity;
+await sellerProduct.save();
 
+if (order.productId) {
+  order.productId.stock = globalStock - order.quantity;
+  await order.productId.save();
+}
+
+// Deduct wallet safely
+seller.wallet.balance = walletBalance - order.buyPrice;
+seller.wallet.transactions = seller.wallet.transactions || [];
+seller.wallet.transactions.push({
+  type: "debit",
+  amount: order.buyPrice,
+  note: `Order pickup - ${order.productId?.name || "Product"}`,
+});
+await seller.save();
     // Freeze customer money
     order.frozenAmount = order.price;
 
