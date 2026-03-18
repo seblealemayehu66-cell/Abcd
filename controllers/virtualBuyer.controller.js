@@ -2,46 +2,93 @@
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 
+// 🌍 Country list
+const countries = [
+  "USA",
+  "UK",
+  "Canada",
+  "Germany",
+  "France",
+  "India",
+  "Brazil",
+  "UAE",
+  "Ethiopia",
+  "China",
+];
+
+// 📞 Phone generator
+const generatePhone = () => {
+  return "+1" + Math.floor(1000000000 + Math.random() * 9000000000);
+};
+
+// 🌍 Random country
+const generateCountry = () => {
+  return countries[Math.floor(Math.random() * countries.length)];
+};
+
 export const createVirtualBuyer = async (req, res) => {
   try {
-    const { name, email, balance } = req.body;
+    const { name, email, balance, country, phone } = req.body;
 
-    // check if email already exists
+    // ✅ Check email
     const existing = await User.findOne({ email });
     if (existing) {
       return res.status(400).json({ message: "Email already exists" });
     }
 
-    // generate password
+    // 🔐 Generate password
     const password = Math.random().toString(36).slice(-8);
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // create new user
+    // 👤 Generate name from email if not provided
+    const generatedName =
+      name ||
+      email
+        .split("@")[0]
+        .replace(/\./g, " ")
+        .replace(/\d+/g, "")
+        .replace(/^\w/, (c) => c.toUpperCase());
+
+    // 🌍 Use provided OR random
+    const finalCountry = country || generateCountry();
+    const finalPhone = phone || generatePhone();
+
+    // 🧾 Create user
     const virtualBuyer = new User({
-      name: name || "Virtual Buyer",
+      name: generatedName,
       email,
       password: hashedPassword,
       isVirtualBuyer: true,
       isSeller: true,
       isApproved: true,
+
+      country: finalCountry,
+      phone: finalPhone,
+
       wallet: {
-        balance: balance || 1000, // default balance if not provided
+        balance: balance || 1000,
       },
     });
 
     await virtualBuyer.save();
 
-    // send response exactly in the shape frontend expects
+    // 📦 Response
     res.status(201).json({
       buyer: {
         id: virtualBuyer._id,
+        name: virtualBuyer.name,
         email: virtualBuyer.email,
-        wallet: virtualBuyer.wallet.balance,
         password,
+        wallet: virtualBuyer.wallet.balance,
+        country: virtualBuyer.country,
+        phone: virtualBuyer.phone,
       },
     });
   } catch (err) {
     console.error("Create virtual buyer error:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    res.status(500).json({
+      message: "Server error",
+      error: err.message,
+    });
   }
 };
