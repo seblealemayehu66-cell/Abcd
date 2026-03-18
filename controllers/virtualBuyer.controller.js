@@ -92,3 +92,22 @@ export const createVirtualBuyer = async (req, res) => {
     });
   }
 };
+export const updateVirtualBuyer = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const update = req.body;
+
+    const buyer = await User.findByIdAndUpdate(
+      id,
+      { $set: update },
+      { new: true }
+    );
+
+    if (!buyer) return res.status(404).json({ message: "Buyer not found" });
+
+    res.json({ buyer });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
