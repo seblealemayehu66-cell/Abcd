@@ -70,7 +70,23 @@ export const getCustomerOrders = async (req, res) => {
 ========================= */
 export const getSellerOrders = async (req, res) => {
   try {
-    const orders = await Order.find()
+    const seller = req.seller;
+
+    if (!seller) {
+      return res.status(401).json({ message: "Seller not authenticated" });
+    }
+
+    // ✅ Step 1: get seller products
+    const sellerProducts = await SellerProduct.find({
+      sellerId: seller._id,
+    });
+
+    const productIds = sellerProducts.map((sp) => sp.productId);
+
+    // ✅ Step 2: get only orders related to those products
+    const orders = await Order.find({
+      productId: { $in: productIds },
+    })
       .populate("productId")
       .populate("customerId", "name email")
       .populate("buyerId", "name email");
