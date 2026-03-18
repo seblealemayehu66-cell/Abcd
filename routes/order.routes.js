@@ -17,7 +17,7 @@ const router = express.Router();
 router.post("/place", placeOrder);
 
 // Customer orders
-router.get("/customer/orders", authMiddleware, getCustomerOrders);
+router.get("/customer/orders", sellerAuth, getCustomerOrders);
 
 // Invoice
 router.get("/invoice/:id", authMiddleware, getInvoice);
