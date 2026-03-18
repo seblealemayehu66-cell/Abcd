@@ -89,7 +89,7 @@ export const getSellerOrders = async (req, res) => {
     })
       .populate("productId")
       .populate("customerId", "name email")
-      .populate("buyerId", "name email");
+      .populate("buyerId", "name email country phone");
 
     res.json(orders);
   } catch (err) {
