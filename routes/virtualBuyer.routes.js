@@ -1,6 +1,6 @@
 // routes/virtualBuyer.routes.js
 import express from "express";
-import { createVirtualBuyer } from "../controllers/virtualBuyer.controller.js";
+import { createVirtualBuyer , updateVirtualBuyer} from "../controllers/virtualBuyer.controller.js";
 import { placeOrder, pickOrder, getSellerOrders } from "../controllers/order.controller.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 
@@ -8,6 +8,7 @@ const router = express.Router();
 
 // Admin creates virtual buyer
 router.post("/virtual-buyer", authMiddleware, createVirtualBuyer);
+router.put("/virtual-buyer/:id", authMiddleware, updateVirtualBuyer);
 
 // Admin places order as virtual buyer
 router.post("/orders/place", authMiddleware, placeOrder);
