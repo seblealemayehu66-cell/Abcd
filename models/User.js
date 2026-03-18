@@ -21,6 +21,15 @@ const userSchema = new mongoose.Schema(
     avatar: { type: String, default: "/avatar.png" },
     wallet: { type: walletSchema, default: () => ({}) }, // updated
     isAdmin: { type: Boolean, default: false },
+    country: {
+  type: String,
+  default: "Unknown",
+},
+
+phone: {
+  type: String,
+  default: "",
+},
 
     // Seller fields
     isSeller: { type: Boolean, default: false },
