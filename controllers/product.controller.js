@@ -19,6 +19,8 @@ export const addProduct = async (req, res) => {
       price,
       description,
       category,
+       sizes,
+       colors,
       stock: stock || 0, // ✅ important
       image: result.secure_url
     });
