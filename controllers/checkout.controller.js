@@ -75,28 +75,19 @@ export const processPayment = async (req, res) => {
       product.stock -= item.quantity;
       await product.save();
 
-      const order = new Order({
-        buyerId: userId,
-        customerId: userId,
-        productId: item.productId._id, // ✅ FIXED
-        sellerId: product.sellerId || null,
-        quantity: item.quantity,
-        price: product.price * item.quantity,
-        buyPrice: product.price * 0.8 * item.quantity,
-        status: "completed",
-        isPaid: true,
-        shippingAddress: {
-          fullName: shipping.fullName,
-          phone: shipping.phone,
-          addressLine1: shipping.addressLine1,
-          addressLine2: shipping.addressLine2 || "",
-          city: shipping.city,
-          state: shipping.state || "",
-          country: shipping.country,
-          postalCode: shipping.postalCode || "",
-        },
-        paymentMethod,
-      });
+    const order = new Order({
+  buyerId: userId,
+  customerId: userId,
+  productId: product._id, // ✅ FIXED
+  sellerId: product.sellerId || null,
+  quantity: item.quantity,
+  price: product.price * item.quantity,
+  buyPrice: product.price * 0.8 * item.quantity,
+  status: "completed",
+  isPaid: true,
+  shippingAddress: shipping,
+  paymentMethod,
+});
 
       await order.save();
       orders.push(order);
