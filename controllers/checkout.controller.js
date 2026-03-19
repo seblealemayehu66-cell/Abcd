@@ -29,7 +29,10 @@ export const saveShipping = async (req, res) => {
 export const processPayment = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { paymentMethod } = req.body;
+    let { paymentMethod } = req.body;
+
+    // Normalize frontend '-' to '_'
+    paymentMethod = paymentMethod.replace("-", "_");
 
     const cart = await Cart.findOne({ userId }).populate("items.productId");
     if (!cart || !cart.items.length) return res.status(400).json({ message: "Cart is empty" });
@@ -62,7 +65,7 @@ export const processPayment = async (req, res) => {
 
     // Create orders
     const orders = [];
-    const shipping = cart.shippingAddress; // ✅ Important
+    const shipping = cart.shippingAddress;
 
     for (let item of cart.items) {
       const product = await Product.findById(item.productId._id);
@@ -75,7 +78,7 @@ export const processPayment = async (req, res) => {
       const order = new Order({
         buyerId: userId,
         customerId: userId,
-        productId: productId._id,
+        productId: item.productId._id, // ✅ FIXED
         sellerId: product.sellerId || null,
         quantity: item.quantity,
         price: product.price * item.quantity,
