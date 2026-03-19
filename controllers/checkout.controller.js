@@ -75,7 +75,7 @@ export const processPayment = async (req, res) => {
       const order = new Order({
         buyerId: userId,
         customerId: userId,
-        productId: product._id,
+        productId: productId._id,
         sellerId: product.sellerId || null,
         quantity: item.quantity,
         price: product.price * item.quantity,
