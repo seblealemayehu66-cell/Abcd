@@ -105,18 +105,27 @@ export const processPayment = async (req, res) => {
 
       // Create order
       const order = new Order({
-        buyerId: userId,
-        customerId: userId,
-        sellerId: product.sellerId,
-        productId: product._id,
-        quantity: item.quantity,
-        price: product.price * item.quantity,
-        buyPrice: product.price * 0.8 * item.quantity,
-        status: "completed",
-        isPaid: true,
-        shippingAddress: cart.shippingAddress,
-        paymentMethod,
-      });
+  buyerId: userId,
+  customerId: userId,
+  productId: product._id,
+  sellerId: product.sellerId || userId, // fallback if missing
+  quantity: item.quantity,
+  price: product.price * item.quantity,
+  buyPrice: product.price * 0.8 * item.quantity,
+  status: "completed",
+  isPaid: true,
+  shippingAddress: {
+    fullName: shipping.fullName,
+    phone: shipping.phone,
+    addressLine1: shipping.addressLine1,
+    addressLine2: shipping.addressLine2 || "",
+    city: shipping.city,
+    state: shipping.state || "",
+    country: shipping.country,
+    postalCode: shipping.postalCode || "",
+  },
+  paymentMethod: paymentMethod,
+});
 
       await order.save();
       orders.push(order);
