@@ -12,20 +12,31 @@ export const addToCart = async (req, res) => {
     const product = await Product.findById(productId);
     if (!product) return res.status(404).json({ message: "Product not found" });
 
-    // check if already in cart
-    let cartItem = await Cart.findOne({ userId, productId, size, color });
-
-    if (cartItem) {
-      cartItem.quantity += quantity;
-    } else {
-      cartItem = new Cart({ userId, productId, quantity, size, color });
+    // get user cart
+    let cart = await Cart.findOne({ userId });
+    if (!cart) {
+      cart = new Cart({ userId, items: [] });
     }
 
-    await cartItem.save();
-    res.json({ message: "Added to cart", cartItem });
+    // check if same product+size+color exists
+    const existingItem = cart.items.find(
+      (item) =>
+        item.productId.toString() === productId &&
+        item.size === size &&
+        item.color === color
+    );
+
+    if (existingItem) {
+      existingItem.quantity += quantity;
+    } else {
+      cart.items.push({ productId, quantity, size, color });
+    }
+
+    await cart.save();
+    res.json({ message: "Added to cart", cart });
   } catch (err) {
     console.error("Add to Cart Error:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
