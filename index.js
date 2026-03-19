@@ -74,7 +74,8 @@ app.use("/api/support", supportRoutes);
 app.use("/api/notifications", notificationsRoutes);
 app.use("/api/wallet", walletRoutes); 
 
-app.use("/api", orderRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/cart", cartRoutes);
 app.use("/api", newsRoutes);
 
 
