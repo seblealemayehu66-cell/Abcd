@@ -10,6 +10,7 @@ import categoryRoutes from "./routes/category.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import newsRoutes from "./routes/news.routes.js";
 import userRoutes from "./routes/userRoutes.js";
+import cartRoutes from "./routes/cart.routes.js";
 
 
 
