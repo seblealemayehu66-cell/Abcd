@@ -11,6 +11,9 @@ import authRoutes from "./routes/auth.routes.js";
 import newsRoutes from "./routes/news.routes.js";
 import userRoutes from "./routes/userRoutes.js";
 import cartRoutes from "./routes/cart.routes.js";
+import checkoutRoutes from "./routes/checkout.routes.js";
+
+
 
 
 
@@ -78,6 +81,7 @@ app.use("/api/wallet", walletRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api", newsRoutes);
+app.use("/api/checkout", checkoutRoutes);
 
 
 
