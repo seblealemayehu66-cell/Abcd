@@ -46,9 +46,16 @@ export const addToCart = async (req, res) => {
 export const getUserCart = async (req, res) => {
   try {
     const userId = req.user.id;
-    const cartItems = await Cart.find({ userId })
-      .populate("productId");
-    res.json(cartItems);
+
+    // Find ONE cart document per user
+    let cart = await Cart.findOne({ userId }).populate("items.productId");
+
+    if (!cart) {
+      // if no cart exists, return empty array
+      return res.json({ items: [] });
+    }
+
+    res.json(cart);
   } catch (err) {
     console.error("Get Cart Error:", err);
     res.status(500).json({ message: "Server error" });
