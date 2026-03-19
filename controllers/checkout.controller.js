@@ -55,6 +55,7 @@ export const processPayment = async (req, res) => {
       return res.status(400).json({ message: "Shipping info not set" });
 
     const user = await User.findById(userId);
+    const shipping = cart.shippingAddress; // <- define this first
 
     // Calculate total amount
     const totalAmount = cart.items.reduce(
