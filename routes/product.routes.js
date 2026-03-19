@@ -5,7 +5,8 @@ import {
   getProducts,
   getProductsByCategory,
   publishCart ,
-  getSellerProducts
+  getSellerProducts,
+  getSingleProduct
 } from "../controllers/product.controller.js";
 
 import upload from "../middleware/upload.js";
@@ -16,7 +17,7 @@ const router = express.Router();
 router.post("/", upload.single("image"), addProduct);
 
 router.get("/", getProducts);
-router.get("/products/:id", async (req, res) => {
+router.get("/products/:id", getSingleProduct);
   
 
 router.get("/category/:categoryId", getProductsByCategory);
