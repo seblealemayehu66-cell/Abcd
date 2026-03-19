@@ -6,10 +6,20 @@ const cartSchema = new mongoose.Schema({
     {
       productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
       quantity: { type: Number, default: 1 },
-      size: { type: String },
-      color: { type: String }
+      size: String,
+      color: String,
     }
-  ]
+  ],
+  shippingAddress: {
+    fullName: String,
+    phone: String,
+    addressLine1: String,
+    addressLine2: String,
+    city: String,
+    state: String,
+    country: String,
+    postalCode: String,
+  }
 }, { timestamps: true });
 
 export default mongoose.model("Cart", cartSchema);
