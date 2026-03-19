@@ -1,66 +1,62 @@
 import mongoose from "mongoose";
 
 const orderSchema = new mongoose.Schema(
-  {
-    // Buyer who places the order
-    buyerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+{
+  buyerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  customerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
 
-    // Customer (receiver), usually same as buyer but could be different for gifting
-    customerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  // ✅ FIX: NOT REQUIRED
+  sellerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
 
-    // Product ordered
-    productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
+  quantity: { type: Number, default: 1 },
 
-    // Seller of the product
-    sellerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-
-    // Quantity of the product
-    quantity: { type: Number, default: 1 },
-
-    // Status of order
-    status: {
-      type: String,
-      enum: ["pending", "processing", "shipped", "delivered", "completed", "cancelled"],
-      default: "pending",
-    },
-
-    // Pricing
-    price: { type: Number, required: true },      // Product price at time of order
-    buyPrice: { type: Number, required: true },   // Cost price or seller payout
-    frozenAmount: { type: Number, default: 0 },   // For escrow/frozen fund system
-
-    // Delivery
-    deliveryDate: Date,
-    isPaid: { type: Boolean, default: false },
-
-    // Shipping & address info
-    shippingAddress: {
-      fullName: { type: String, required: true },
-      phone: { type: String, required: true },
-      addressLine1: { type: String, required: true },
-      addressLine2: String,
-      city: { type: String, required: true },
-      state: String,
-      country: { type: String, required: true },
-      postalCode: String,
-    },
-
-    // Payment info
-    paymentMethod: {
-      type: String,
-      enum: ["COD", "Credit Card", "PayPal", "Stripe", "Other"],
-      default: "COD",
-    },
-
-    // Additional notes (optional)
-    notes: { type: String },
+  status: {
+    type: String,
+    enum: ["pending", "processing", "shipped", "delivered", "completed", "cancelled"],
+    default: "pending",
   },
-  { timestamps: true }
+
+  price: { type: Number, required: true },
+  buyPrice: { type: Number, required: true },
+  frozenAmount: { type: Number, default: 0 },
+
+  deliveryDate: Date,
+  isPaid: { type: Boolean, default: false },
+
+  shippingAddress: {
+    fullName: String,
+    phone: String,
+    addressLine1: String,
+    addressLine2: String,
+    city: String,
+    state: String,
+    country: String,
+    postalCode: String,
+  },
+
+  // ✅ FIX: ADD YOUR METHODS
+  paymentMethod: {
+    type: String,
+    enum: [
+      "wallet",
+      "usdt_trc20",
+      "usdt_erc20",
+      "Credit Card",
+      "COD"
+    ],
+    default: "wallet",
+  },
+
+},
+{ timestamps: true }
 );
 
-// Populate product, buyer, seller by default for convenience
-orderSchema.pre(/^find/, async function () {
-  this.populate("productId").populate("buyerId").populate("sellerId");
+// ✅ FIX: ADD next
+orderSchema.pre(/^find/, function (next) {
+  this.populate("productId")
+      .populate("buyerId")
+      .populate("sellerId");
   next();
 });
 
