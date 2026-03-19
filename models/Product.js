@@ -37,8 +37,7 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
-      sizes: [{ type: String }],       // e.g. ["S", "M", "L", "XL"]
-  colors: [{ type: String }], 
+      
 
     stock: {
       type: Number,
