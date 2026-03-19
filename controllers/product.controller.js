@@ -20,8 +20,8 @@ export const addProduct = async (req, res) => {
       price,
       description,
       category,
-       sizes,
-       colors,
+      sizes: sizes ? JSON.parse(sizes) : [],
+      colors: colors ? JSON.parse(colors) : [],
       stock: stock || 0, // ✅ important
       image: result.secure_url
     });
