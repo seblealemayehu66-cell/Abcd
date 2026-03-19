@@ -5,26 +5,36 @@ import {
   getSellerOrders,
   getInvoice,
   pickOrder,
-   // add this
 } from "../controllers/order.controller.js";
 
-import authMiddleware from "../middleware/authMiddleware.js";
-import { sellerAuth } from "../middleware/sellerAuth.js";
+import authMiddleware from "../middleware/authMiddleware.js"; // for customers
+import { sellerAuth } from "../middleware/sellerAuth.js"; // for sellers
 
 const router = express.Router();
 
-// Admin places order
-router.post("/place", placeOrder);
+/* =========================
+   ✅ ADMIN / VIRTUAL BUYER PLACE ORDER
+========================= */
+router.post("/place", placeOrder); // anyone/admin can place order (virtual buyer)
 
-// Customer orders
+/* =========================
+   ✅ CUSTOMER ORDERS
+========================= */
 router.get("/customer/orders", authMiddleware, getCustomerOrders);
 
-// Invoice
+/* =========================
+   ✅ GET INVOICE
+========================= */
 router.get("/invoice/:id", authMiddleware, getInvoice);
 
-// Seller routes
+/* =========================
+   ✅ SELLER ORDERS
+========================= */
 router.get("/seller/orders", sellerAuth, getSellerOrders);
-router.post("/pick/:id", sellerAuth, pickOrder); // pickup order
 
+/* =========================
+   ✅ PICK ORDER (SELLER)
+========================= */
+router.put("/pick/:id", sellerAuth, pickOrder);
 
 export default router;
