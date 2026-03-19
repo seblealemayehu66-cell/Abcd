@@ -6,7 +6,8 @@ import cloudinary from "../config/cloudinary.js";
 // ✅ ADD PRODUCT (ADMIN CATALOG)
 export const addProduct = async (req, res) => {
   try {
-    const { name, price, description, category, stock} = req.body;
+    const { name, price, description, category, stock, sizes,
+  colors} = req.body;
 
     if (!req.file) {
       return res.status(400).json({ message: "Image required" });
@@ -19,6 +20,8 @@ export const addProduct = async (req, res) => {
       price,
       description,
       category,
+       sizes,
+       colors,
       stock: stock || 0, // ✅ important
       image: result.secure_url
     });
