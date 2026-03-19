@@ -3,32 +3,18 @@ import Order from "../models/Order.js";
 import Product from "../models/Product.js";
 import User from "../models/User.js";
 
-/* =========================
-   ✅ SAVE SHIPPING INFO
-========================= */
+// Save shipping info in Cart temporarily
 export const saveShipping = async (req, res) => {
   try {
     const userId = req.user.id;
-    const {
-      fullName,
-      phone,
-      addressLine1,
-      addressLine2,
-      city,
-      state,
-      country,
-      postalCode,
-    } = req.body;
+    const { fullName, phone, addressLine1, addressLine2, city, state, country, postalCode } = req.body;
 
-    // Required fields check
     if (!fullName || !phone || !addressLine1 || !city || !country)
-      return res.status(400).json({ message: "Please fill all required shipping fields" });
+      return res.status(400).json({ message: "Please fill required shipping fields" });
 
     const cart = await Cart.findOne({ userId });
-    if (!cart || !cart.items.length)
-      return res.status(400).json({ message: "Cart is empty" });
+    if (!cart || !cart.items.length) return res.status(400).json({ message: "Cart is empty" });
 
-    // Save shipping in cart temporarily
     cart.shippingAddress = { fullName, phone, addressLine1, addressLine2, city, state, country, postalCode };
     await cart.save();
 
@@ -39,29 +25,22 @@ export const saveShipping = async (req, res) => {
   }
 };
 
-/* =========================
-   ✅ PROCESS PAYMENT & PLACE ORDER
-========================= */
+// Process payment and create orders
 export const processPayment = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { paymentMethod } = req.body; // wallet / usdt_trc20 / usdt_erc20 / credit card
+    const { paymentMethod } = req.body;
 
     const cart = await Cart.findOne({ userId }).populate("items.productId");
-    if (!cart || !cart.items.length)
-      return res.status(400).json({ message: "Cart is empty" });
-
-    if (!cart.shippingAddress)
-      return res.status(400).json({ message: "Shipping info not set" });
+    if (!cart || !cart.items.length) return res.status(400).json({ message: "Cart is empty" });
+    if (!cart.shippingAddress) return res.status(400).json({ message: "Shipping not set" });
 
     const user = await User.findById(userId);
-    const shipping = cart.shippingAddress; // <- define this first
 
-    // Calculate total amount
-    const totalAmount = cart.items.reduce(
-      (sum, item) => sum + item.productId.price * item.quantity,
-      0
-    );
+    let totalAmount = 0;
+    cart.items.forEach(item => {
+      totalAmount += item.productId.price * item.quantity;
+    });
 
     // Wallet payment
     if (paymentMethod === "wallet") {
@@ -70,63 +49,51 @@ export const processPayment = async (req, res) => {
 
       user.wallet.balance -= totalAmount;
       user.wallet.transactions = user.wallet.transactions || [];
-      user.wallet.transactions.push({
-        type: "debit",
-        amount: totalAmount,
-        note: "Order Payment",
-      });
-
+      user.wallet.transactions.push({ type: "debit", amount: totalAmount, note: "Order Payment" });
       await user.save();
     }
 
-    // Other payment methods (simulate success for now)
-    else if (
-      paymentMethod === "usdt_trc20" ||
-      paymentMethod === "usdt_erc20" ||
-      paymentMethod === "credit_card"
-    ) {
-      // Integrate blockchain / payment gateway logic here
+    // Other payment methods simulate success
+    else if (["usdt_trc20", "usdt_erc20", "Credit Card"].includes(paymentMethod)) {
+      // Payment success simulation
     } else {
       return res.status(400).json({ message: "Invalid payment method" });
     }
 
     // Create orders
     const orders = [];
-    for (const item of cart.items) {
+    const shipping = cart.shippingAddress; // ✅ Important
+
+    for (let item of cart.items) {
       const product = await Product.findById(item.productId._id);
-
       if (!product) return res.status(400).json({ message: "Product not found" });
+      if (product.stock < item.quantity) return res.status(400).json({ message: `Not enough stock for ${product.name}` });
 
-      if (product.stock < item.quantity)
-        return res.status(400).json({ message: `Not enough stock for ${product.name}` });
-
-      // Reduce stock
       product.stock -= item.quantity;
       await product.save();
 
-      // Create order
       const order = new Order({
-  buyerId: userId,
-  customerId: userId,
-  productId: product._id,
-  sellerId: product.sellerId || userId, // fallback if missing
-  quantity: item.quantity,
-  price: product.price * item.quantity,
-  buyPrice: product.price * 0.8 * item.quantity,
-  status: "completed",
-  isPaid: true,
-  shippingAddress: {
-    fullName: shipping.fullName,
-    phone: shipping.phone,
-    addressLine1: shipping.addressLine1,
-    addressLine2: shipping.addressLine2 || "",
-    city: shipping.city,
-    state: shipping.state || "",
-    country: shipping.country,
-    postalCode: shipping.postalCode || "",
-  },
-  paymentMethod: paymentMethod,
-});
+        buyerId: userId,
+        customerId: userId,
+        productId: product._id,
+        sellerId: product.sellerId || null,
+        quantity: item.quantity,
+        price: product.price * item.quantity,
+        buyPrice: product.price * 0.8 * item.quantity,
+        status: "completed",
+        isPaid: true,
+        shippingAddress: {
+          fullName: shipping.fullName,
+          phone: shipping.phone,
+          addressLine1: shipping.addressLine1,
+          addressLine2: shipping.addressLine2 || "",
+          city: shipping.city,
+          state: shipping.state || "",
+          country: shipping.country,
+          postalCode: shipping.postalCode || "",
+        },
+        paymentMethod,
+      });
 
       await order.save();
       orders.push(order);
@@ -137,9 +104,9 @@ export const processPayment = async (req, res) => {
     cart.shippingAddress = null;
     await cart.save();
 
-    res.json({ message: "Payment successful", orders, totalAmount });
+    res.json({ message: "Payment successful", orders });
   } catch (err) {
     console.error("Payment Error:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
