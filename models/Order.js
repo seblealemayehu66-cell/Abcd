@@ -59,7 +59,7 @@ const orderSchema = new mongoose.Schema(
 );
 
 // Populate product, buyer, seller by default for convenience
-orderSchema.pre(/^find/, function (next) {
+orderSchema.pre(/^find/, async function () {
   this.populate("productId").populate("buyerId").populate("sellerId");
   next();
 });
