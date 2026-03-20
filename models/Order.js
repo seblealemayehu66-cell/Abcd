@@ -53,11 +53,6 @@ const orderSchema = new mongoose.Schema(
 );
 
 // ✅ FIX: ADD next
-orderSchema.pre(/^find/, function (next) {
-  this.populate("productId")
-      .populate("buyerId")
-      .populate("sellerId");
-  next();
-});
+
 
 export default mongoose.model("Order", orderSchema);
