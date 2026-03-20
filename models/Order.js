@@ -7,7 +7,7 @@ const orderSchema = new mongoose.Schema(
   productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
 
   // ✅ FIX: NOT REQUIRED
-  sellerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+  sellerId: { type: mongoose.Schema.Types.ObjectId, ref: "User"},
 
   quantity: { type: Number, default: 1 },
 
