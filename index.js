@@ -6,7 +6,7 @@ import cors from "cors";
 
 
 import productRoutes from "./routes/product.routes.js";
-import categoryRoutes from "./routes/category.routes.js";
+
 import authRoutes from "./routes/auth.routes.js";
 import newsRoutes from "./routes/news.routes.js";
 import userRoutes from "./routes/userRoutes.js";
@@ -63,7 +63,7 @@ app.use(express.json());
 
 
 app.use("/api/auth", authRoutes);
-app.use("/api/categories", categoryRoutes);
+
 
 app.use("/api/products", productRoutes);
 app.use("/api/seller-cart", sellerCartRoutes);
