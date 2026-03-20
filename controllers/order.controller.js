@@ -12,6 +12,7 @@ export const placeOrder = async (req, res) => {
       buyerId,
       customerId,
       productId,
+       sellerId,
       quantity,
       shippingAddress,
       paymentMethod,
