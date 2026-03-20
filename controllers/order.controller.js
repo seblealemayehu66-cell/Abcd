@@ -132,7 +132,25 @@ export const getInvoice = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+import Order from "../models/order.js";
+import Product from "../models/product.js";
 
+// Get all orders for a logged-in user
+export const getPurchaseHistory = async (req, res) => {
+  try {
+    const userId = req.user._id; // assume you have auth middleware that sets req.user
+
+    // Fetch orders and populate product info
+    const orders = await Order.find({ customerId: userId })
+      .populate("productId") // get product details
+      .sort({ createdAt: -1 }); // newest first
+
+    res.status(200).json(orders);
+  } catch (err) {
+    console.error("Purchase History Error:", err);
+    res.status(500).json({ message: "Server error fetching purchase history" });
+  }
+};
 /* =========================
    🔥 PICK ORDER (FIXED)
 ========================= */
