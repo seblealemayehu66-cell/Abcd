@@ -142,9 +142,11 @@ export const pickOrder = async (req, res) => {
 
     const order = await Order.findById(orderId).populate("productId");
 
-    if (!order)
+    if (!order) {
       return res.status(404).json({ message: "Order not found" });
+    }
 
+    // ✅ Prevent double pick
     if (order.status !== "pending") {
       return res.status(400).json({ message: "Order already picked" });
     }
@@ -155,11 +157,19 @@ export const pickOrder = async (req, res) => {
       return res.status(401).json({ message: "Seller not authenticated" });
     }
 
-    // ✅ SECURITY CHECK 🔥 (VERY IMPORTANT)
-    if (order.sellerId.toString() !== seller._id.toString()) {
-      return res.status(403).json({ message: "Not your order" });
+    // ✅ SAFETY: sellerId must exist
+    if (!order.sellerId) {
+      return res.status(400).json({
+        message: "Order has no seller assigned (old/broken order)",
+      });
     }
 
+    // ✅ SAFETY: correct seller
+    if (order.sellerId.toString() !== seller._id.toString()) {
+      return res.status(403).json({ message: "This is not your order" });
+    }
+
+    // ✅ Get seller product
     const sellerProduct = await SellerProduct.findOne({
       sellerId: seller._id,
       productId: order.productId._id,
@@ -171,10 +181,12 @@ export const pickOrder = async (req, res) => {
 
     const quantity = order.quantity || 1;
 
+    // ✅ Check seller stock FIRST
     if (sellerProduct.stock < quantity) {
       return res.status(400).json({ message: "Not enough seller stock" });
     }
 
+    // ✅ Check global product
     const product = await Product.findById(order.productId._id);
 
     if (!product) {
@@ -185,20 +197,30 @@ export const pickOrder = async (req, res) => {
       return res.status(400).json({ message: "Not enough global stock" });
     }
 
+    // ✅ Check wallet BEFORE deduction
     if ((seller.wallet?.balance || 0) < order.buyPrice) {
       return res.status(400).json({ message: "Insufficient wallet balance" });
     }
 
-    // 🔻 UPDATE STOCK
+    /* =========================
+       🔥 ALL CHECKS PASSED
+       NOW UPDATE (SAFE ZONE)
+    ========================= */
+
+    // 👉 Deduct seller stock
     sellerProduct.stock -= quantity;
+    if (sellerProduct.stock < 0) sellerProduct.stock = 0;
     await sellerProduct.save();
 
+    // 👉 Deduct global stock
     product.stock -= quantity;
+    if (product.stock < 0) product.stock = 0;
     await product.save();
 
-    // 🔻 WALLET
+    // 👉 Deduct wallet
     seller.wallet.balance -= order.buyPrice;
 
+    seller.wallet.transactions = seller.wallet.transactions || [];
     seller.wallet.transactions.push({
       type: "debit",
       amount: order.buyPrice,
@@ -207,19 +229,24 @@ export const pickOrder = async (req, res) => {
 
     await seller.save();
 
-    // 🔻 UPDATE ORDER
+    // 👉 Update order LAST (VERY IMPORTANT)
     order.status = "delivery";
     order.frozenAmount = order.price;
     order.deliveryDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
 
     await order.save();
 
-    res.json({
+    return res.json({
       message: "Order picked successfully",
       order,
     });
+
   } catch (err) {
-    console.error("Pick Order Error:", err);
-    res.status(500).json({ message: "Server error" });
+    console.error("🔥 Pick Order Crash:", err);
+
+    return res.status(500).json({
+      message: "Server error while picking order",
+      error: err.message,
+    });
   }
 };
