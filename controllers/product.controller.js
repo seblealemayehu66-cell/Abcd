@@ -20,8 +20,8 @@ export const addProduct = async (req, res) => {
       name,
       price,
       description,
-       mainCategory,
-      subCategory,
+      mainCategory: mainCategory || null,
+      subCategory: subCategory || null,
       sizes: sizes ? JSON.parse(sizes) : [],
       colors: colors ? JSON.parse(colors) : [],
       stock: stock || 0, // ✅ important
