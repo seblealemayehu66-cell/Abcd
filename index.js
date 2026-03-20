@@ -12,6 +12,7 @@ import newsRoutes from "./routes/news.routes.js";
 import userRoutes from "./routes/userRoutes.js";
 import cartRoutes from "./routes/cart.routes.js";
 import checkoutRoutes from "./routes/checkout.routes.js";
+import categoryRoutes from "./routes/categoryRoutes.js";
 
 
 
@@ -62,6 +63,7 @@ app.use(express.json());
 
 
 app.use("/api/auth", authRoutes);
+app.use("/api/categories", categoryRoutes);
 
 app.use("/api/products", productRoutes);
 app.use("/api/seller-cart", sellerCartRoutes);
