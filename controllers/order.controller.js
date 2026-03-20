@@ -6,59 +6,48 @@ import SellerProduct from "../models/SellerProduct.js";
 /* =========================
    ✅ PLACE ORDER
 ========================= */
-export const placeOrder = async (req, res) => {
-  try {
-    const {
-      buyerId,
-      customerId,
-      productId,
-      quantity,
-      shippingAddress,
-      paymentMethod,
-      notes,
-    } = req.body;
+export const placeOrder = async (req,res)=>{
+try{
 
-    // ✅ Validate buyer
-    const buyer = await User.findById(buyerId);
-    if (!buyer) return res.status(400).json({ message: "Buyer not found" });
+const {buyerId,customerId,productId}=req.body;
 
-    // ✅ Validate customer (receiver)
-    const customer = await User.findById(customerId);
-    if (!customer) return res.status(400).json({ message: "Customer not found" });
+const buyer = await User.findById(buyerId);
+if(!buyer || !buyer.isVirtualBuyer)
+return res.status(400).json({message:"Invalid virtual buyer"});
 
-    // ✅ Validate product
-    const product = await Product.findById(productId);
-    if (!product) return res.status(400).json({ message: "Product not found" });
+const customer = await User.findById(customerId);
+if(!customer)
+return res.status(400).json({message:"Customer not found"});
 
-    const qty = quantity || 1;
-    if (product.stock < qty)
-      return res.status(400).json({ message: "Not enough product stock" });
+const product = await Product.findById(productId);
+if(!product)
+return res.status(400).json({message:"Product not found"});
 
-    const buyPrice = product.price * 0.8; // Platform purchase price
+/* company cost */
 
-    const order = new Order({
-      buyerId,
-      customerId,
-      productId,
-      quantity: qty,
-      price: product.price * qty,
-      buyPrice: buyPrice * qty,
-      shippingAddress,
-      paymentMethod,
-      notes,
-    });
+const buyPrice = product.price * 0.8;
 
-    await order.save();
+const order = new Order({
+buyerId,
+customerId,
+productId,
+price:product.price,
+buyPrice
+});
 
-    res.json({
-      message: "Order placed successfully",
-      order,
-    });
-  } catch (err) {
-    console.error("Place Order Error:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
-  }
+await order.save();
+
+res.json({
+message:"Order placed successfully",
+order
+});
+
+}catch(err){
+console.log(err);
+res.status(500).json({message:"Server error"});
+}
 };
+
 
 /* =========================
    ✅ GET CUSTOMER ORDERS
