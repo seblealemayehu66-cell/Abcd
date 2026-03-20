@@ -15,14 +15,28 @@ export const placeOrder = async (req, res) => {
       return res.status(400).json({ message: "Invalid virtual buyer" });
 
     const customer = await User.findById(customerId);
-    if (!customer) return res.status(400).json({ message: "Customer not found" });
+    if (!customer)
+      return res.status(400).json({ message: "Customer not found" });
 
     const product = await Product.findById(productId);
-    if (!product) return res.status(400).json({ message: "Product not found" });
+    if (!product)
+      return res.status(400).json({ message: "Product not found" });
 
     const qty = quantity || 1;
+
     if (product.stock < qty)
       return res.status(400).json({ message: "Not enough product stock" });
+
+    // ✅ GET SELLER FROM SellerProduct 🔥
+    const sellerProduct = await SellerProduct.findOne({
+      productId: productId,
+    });
+
+    if (!sellerProduct) {
+      return res.status(400).json({
+        message: "No seller assigned to this product",
+      });
+    }
 
     const buyPrice = product.price * 0.8;
 
@@ -30,6 +44,7 @@ export const placeOrder = async (req, res) => {
       buyerId,
       customerId,
       productId,
+      sellerId: sellerProduct.sellerId, // ✅ FIXED
       price: product.price * qty,
       buyPrice: buyPrice * qty,
       quantity: qty,
@@ -66,7 +81,7 @@ export const getCustomerOrders = async (req, res) => {
 };
 
 /* =========================
-   ✅ SELLER ORDERS
+   ✅ SELLER ORDERS (FIXED 🔥)
 ========================= */
 export const getSellerOrders = async (req, res) => {
   try {
@@ -76,16 +91,9 @@ export const getSellerOrders = async (req, res) => {
       return res.status(401).json({ message: "Seller not authenticated" });
     }
 
-    // ✅ Step 1: get seller products
-    const sellerProducts = await SellerProduct.find({
-      sellerId: seller._id,
-    });
-
-    const productIds = sellerProducts.map((sp) => sp.productId);
-
-    // ✅ Step 2: get only orders related to those products
+    // ✅ SIMPLE + STRONG LOGIC 🔥
     const orders = await Order.find({
-      productId: { $in: productIds },
+      sellerId: seller._id,
     })
       .populate("productId")
       .populate("customerId", "name email")
@@ -107,7 +115,8 @@ export const getInvoice = async (req, res) => {
       .populate("productId")
       .populate("customerId", "name email");
 
-    if (!order) return res.status(404).json({ message: "Order not found" });
+    if (!order)
+      return res.status(404).json({ message: "Order not found" });
 
     res.json({
       orderId: order._id,
@@ -120,12 +129,12 @@ export const getInvoice = async (req, res) => {
     });
   } catch (err) {
     console.error("Get Invoice Error:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
 /* =========================
-   🔥 PICK ORDER (SAFE)
+   🔥 PICK ORDER (FIXED)
 ========================= */
 export const pickOrder = async (req, res) => {
   try {
@@ -133,7 +142,8 @@ export const pickOrder = async (req, res) => {
 
     const order = await Order.findById(orderId).populate("productId");
 
-    if (!order) return res.status(404).json({ message: "Order not found" });
+    if (!order)
+      return res.status(404).json({ message: "Order not found" });
 
     if (order.status !== "pending") {
       return res.status(400).json({ message: "Order already picked" });
@@ -145,10 +155,14 @@ export const pickOrder = async (req, res) => {
       return res.status(401).json({ message: "Seller not authenticated" });
     }
 
-    // ✅ Get seller product
+    // ✅ SECURITY CHECK 🔥 (VERY IMPORTANT)
+    if (order.sellerId.toString() !== seller._id.toString()) {
+      return res.status(403).json({ message: "Not your order" });
+    }
+
     const sellerProduct = await SellerProduct.findOne({
       sellerId: seller._id,
-      productId: order.productId?._id,
+      productId: order.productId._id,
     });
 
     if (!sellerProduct) {
@@ -157,49 +171,34 @@ export const pickOrder = async (req, res) => {
 
     const quantity = order.quantity || 1;
 
-    // ✅ Check seller stock
     if (sellerProduct.stock < quantity) {
       return res.status(400).json({ message: "Not enough seller stock" });
     }
 
-    // ✅ Get GLOBAL product (IMPORTANT FIX 🔥)
     const product = await Product.findById(order.productId._id);
 
     if (!product) {
       return res.status(404).json({ message: "Global product not found" });
     }
 
-    // ✅ Check global stock
     if (product.stock < quantity) {
       return res.status(400).json({ message: "Not enough global stock" });
     }
 
-    // ✅ Check wallet
     if ((seller.wallet?.balance || 0) < order.buyPrice) {
       return res.status(400).json({ message: "Insufficient wallet balance" });
     }
 
-    /* =========================
-       🔥 UPDATE STOCKS
-    ========================= */
-
-    // 👉 Seller stock decrease
+    // 🔻 UPDATE STOCK
     sellerProduct.stock -= quantity;
-    if (sellerProduct.stock < 0) sellerProduct.stock = 0;
     await sellerProduct.save();
 
-    // 👉 Global stock decrease (FIXED 🔥)
     product.stock -= quantity;
-    if (product.stock < 0) product.stock = 0;
     await product.save();
 
-    /* =========================
-       💰 WALLET DEDUCTION
-    ========================= */
-
+    // 🔻 WALLET
     seller.wallet.balance -= order.buyPrice;
 
-    seller.wallet.transactions = seller.wallet.transactions || [];
     seller.wallet.transactions.push({
       type: "debit",
       amount: order.buyPrice,
@@ -208,15 +207,9 @@ export const pickOrder = async (req, res) => {
 
     await seller.save();
 
-    /* =========================
-       📦 UPDATE ORDER
-    ========================= */
-
+    // 🔻 UPDATE ORDER
     order.status = "delivery";
-    order.sellerId = seller._id;
     order.frozenAmount = order.price;
-
-    // ⏳ delivery after 3 days
     order.deliveryDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
 
     await order.save();
@@ -225,12 +218,8 @@ export const pickOrder = async (req, res) => {
       message: "Order picked successfully",
       order,
     });
-
   } catch (err) {
-    console.error("🔥 Pick Order Error:", err);
-    res.status(500).json({
-      message: "Server error",
-      error: err.message,
-    });
+    console.error("Pick Order Error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 };
