@@ -5,6 +5,7 @@ import {
   getSellerOrders,
   getInvoice,
   pickOrder,
+  getPurchaseHistory
 } from "../controllers/order.controller.js";
 
 import authMiddleware from "../middleware/authMiddleware.js"; // for customers
@@ -36,5 +37,6 @@ router.get("/seller/orders", sellerAuth, getSellerOrders);
    ✅ PICK ORDER (SELLER)
 ========================= */
 router.put("/pick/:id", sellerAuth, pickOrder);
+router.get("/user", authMiddleware, getPurchaseHistory);
 
 export default router;
