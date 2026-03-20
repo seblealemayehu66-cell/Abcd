@@ -7,8 +7,7 @@ import cloudinary from "../config/cloudinary.js";
 export const addProduct = async (req, res) => {
   try {
     const { name, price, description, category, stock, sizes,
-  colors, mainCategory,
-      subCategory,} = req.body;
+  colors} = req.body;
 
     if (!req.file) {
       return res.status(400).json({ message: "Image required" });
@@ -20,8 +19,7 @@ export const addProduct = async (req, res) => {
       name,
       price,
       description,
-      mainCategory: mainCategory || null,
-      subCategory: subCategory || null,
+      category,
       sizes: sizes ? JSON.parse(sizes) : [],
       colors: colors ? JSON.parse(colors) : [],
       stock: stock || 0, // ✅ important
