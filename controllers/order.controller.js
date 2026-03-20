@@ -40,7 +40,7 @@ export const placeOrder = async (req, res) => {
       buyerId,
       customerId,
       productId,
-      sellerId: product.sellerId,
+      sellerId: product.seller,
       quantity: qty,
       price: product.price * qty,
       buyPrice: buyPrice * qty,
