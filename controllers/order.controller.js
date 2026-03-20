@@ -230,7 +230,7 @@ export const pickOrder = async (req, res) => {
     await seller.save();
 
     // 👉 Update order LAST (VERY IMPORTANT)
-    order.status = "delivery";
+    order.status = "processing";
     order.frozenAmount = order.price;
     order.deliveryDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
 
