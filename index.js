@@ -12,7 +12,7 @@ import newsRoutes from "./routes/news.routes.js";
 import userRoutes from "./routes/userRoutes.js";
 import cartRoutes from "./routes/cart.routes.js";
 import checkoutRoutes from "./routes/checkout.routes.js";
-import categoryRoutes from "./routes/categoryRoutes.js";
+import categoryRoutes from "./routes/category.routes.js";
 
 
 
