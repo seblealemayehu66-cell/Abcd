@@ -132,8 +132,7 @@ export const getInvoice = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-import Order from "../models/order.js";
-import Product from "../models/product.js";
+
 
 // Get all orders for a logged-in user
 export const getPurchaseHistory = async (req, res) => {
