@@ -1,13 +1,22 @@
 import Product from "../models/Product.js";
 import SellerProduct from "../models/SellerProduct.js";
+import SellerCart from "../models/SellerCart.js"; // ✅ FIXED (you forgot this)
 import cloudinary from "../config/cloudinary.js";
 
 
 // ✅ ADD PRODUCT (ADMIN CATALOG)
 export const addProduct = async (req, res) => {
   try {
-    const { name, price, description, category, stock, sizes,
-  colors} = req.body;
+    const {
+      name,
+      price,
+      description,
+      category,
+      subcategory, // ✅ NEW
+      stock,
+      sizes,
+      colors
+    } = req.body;
 
     if (!req.file) {
       return res.status(400).json({ message: "Image required" });
@@ -20,9 +29,10 @@ export const addProduct = async (req, res) => {
       price,
       description,
       category,
+      subcategory, // ✅ SAVE IT
       sizes: sizes ? JSON.parse(sizes) : [],
       colors: colors ? JSON.parse(colors) : [],
-      stock: stock || 0, // ✅ important
+      stock: stock || 0,
       image: result.secure_url
     });
 
@@ -36,12 +46,12 @@ export const addProduct = async (req, res) => {
   }
 };
 
+
 // ✅ GET SINGLE PRODUCT
 export const getSingleProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id)
       .populate("category");
-      
 
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
@@ -56,38 +66,58 @@ export const getSingleProduct = async (req, res) => {
 };
 
 
-
-// ✅ GET ALL PRODUCTS
+// ✅ GET ALL PRODUCTS (WITH FILTER 🔥)
 export const getProducts = async (req, res) => {
   try {
-    const products = await Product.find().populate("category");
+    const { category, subcategory } = req.query;
+
+    let filter = {};
+
+    if (category) {
+      filter.category = category;
+    }
+
+    if (subcategory) {
+      filter.subcategory = subcategory;
+    }
+
+    const products = await Product.find(filter).populate("category");
+
     res.json(products);
+
   } catch (error) {
+    console.log(error);
     res.status(500).json({ message: "Server error" });
   }
 };
 
 
-
-// ✅ GET BY CATEGORY
+// ✅ GET BY CATEGORY (WITH SUBCATEGORY FILTER 🔥)
 export const getProductsByCategory = async (req, res) => {
   try {
     const { categoryId } = req.params;
+    const { subcategory } = req.query;
+
+    let filter = { category: categoryId };
+
+    if (subcategory) {
+      filter.subcategory = subcategory;
+    }
 
     const products = await Product
-      .find({ category: categoryId })
+      .find(filter)
       .populate("category");
 
     res.json(products);
 
   } catch (error) {
+    console.log(error);
     res.status(500).json({ message: "Server error" });
   }
 };
 
 
-
-// ✅ SELLER PUBLISH PRODUCTS (FIXED 🔥)
+// ✅ SELLER PUBLISH PRODUCTS
 export const publishCart = async (req, res) => {
   try {
     const seller = req.seller;
@@ -140,7 +170,6 @@ export const publishCart = async (req, res) => {
 };
 
 
-
 // ✅ GET SELLER PRODUCTS
 export const getSellerProducts = async (req, res) => {
   try {
@@ -148,11 +177,15 @@ export const getSellerProducts = async (req, res) => {
 
     const products = await SellerProduct
       .find({ sellerId })
-      .populate("productId");
+      .populate({
+        path: "productId",
+        populate: { path: "category" } // ✅ optional deep populate
+      });
 
     res.json(products);
 
   } catch (error) {
+    console.log(error);
     res.status(500).json({ message: "Server error" });
   }
 };
