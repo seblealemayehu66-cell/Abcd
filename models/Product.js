@@ -24,6 +24,10 @@ const productSchema = new mongoose.Schema(
     },
 
     category: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
+      subcategory: {
+      type: String,
+      default: ""
+    },
 
     seller: {
       type: mongoose.Schema.Types.ObjectId,
