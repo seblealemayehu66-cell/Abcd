@@ -1,6 +1,10 @@
 import mongoose from "mongoose";
 import express from "express";
 import cors from "cors";
+import reviewRoutes from "./routes/review.routes.js";
+
+
+
 
 
 
@@ -78,7 +82,8 @@ app.use("/api/adminn", virtualBuyerRoutes);
 app.use("/api/admin/support", adminSupportRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/notifications", notificationsRoutes);
-app.use("/api/wallet", walletRoutes); 
+app.use("/api/wallet", walletRoutes);
+app.use("/api/reviews", reviewRoutes);
 
 app.use("/api/orders", orderRoutes);
 app.use("/api/cart", cartRoutes);
