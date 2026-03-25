@@ -5,5 +5,6 @@ import authMiddleware from "../middleware/authMiddleware.js";
 const router = express.Router();
 
 router.post("/", authMiddleware, addReview);
+router.post("/:productId", authMiddleware, addReview);
 
 export default router;
