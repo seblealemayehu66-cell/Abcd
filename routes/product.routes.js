@@ -14,7 +14,11 @@ import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.post("/", upload.single("image"), addProduct);
+const storage = multer.diskStorage({});
+const upload = multer({ storage });
+
+// ✅ ADD PRODUCT (MULTIPLE IMAGES)
+router.post("/", upload.array("images", 5), addProduct); 
 
 router.get("/", getProducts);
 router.get("/:id", getSingleProduct);
