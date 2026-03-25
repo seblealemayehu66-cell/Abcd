@@ -1,26 +1,26 @@
 import Review from "../models/Review.js";
 import Product from "../models/Product.js";
 
+// Add review
 export const addReview = async (req, res) => {
   try {
-    const { productId, rating, comment } = req.body;
-    const userId = req.user.id; // make sure user auth middleware sets req.user
+    const { productId } = req.params;
+    const { rating, comment } = req.body;
 
-    if (!productId || !rating) {
-      return res.status(400).json({ message: "Product and rating required" });
+    if (!rating || !comment) {
+      return res.status(400).json({ message: "Rating and comment required" });
     }
 
-    const review = new Review({ productId, userId, rating, comment });
-    await review.save();
+    const review = await Review.create({
+      productId,
+      userId: req.user._id, // from protect middleware
+      rating,
+      comment
+    });
 
-    // Optional: update product rating average
-    const reviews = await Review.find({ productId });
-    const avgRating = reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length;
-    await Product.findByIdAndUpdate(productId, { rating: avgRating });
-
-    res.json(review);
+    res.status(201).json(review);
   } catch (err) {
-    console.error(err);
+    console.error("Review Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
