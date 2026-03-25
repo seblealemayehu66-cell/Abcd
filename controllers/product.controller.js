@@ -2,6 +2,8 @@ import Product from "../models/Product.js";
 import SellerProduct from "../models/SellerProduct.js";
 import SellerCart from "../models/SellerCart.js"; // ✅ FIXED (you forgot this)
 import cloudinary from "../config/cloudinary.js";
+import Order from "../models/Order.js";
+import Review from "../models/Review.js";
 
 
 // ✅ ADD PRODUCT (ADMIN CATALOG)
@@ -48,16 +50,29 @@ export const addProduct = async (req, res) => {
 
 
 // ✅ GET SINGLE PRODUCT
+
+
 export const getSingleProduct = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id)
-      .populate("category");
+    const product = await Product.findById(req.params.id).populate("category");
 
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    res.json(product);
+    // ✅ Get total orders
+    const orderCount = await Order.countDocuments({ productId: req.params.id });
+
+    // ✅ Get reviews
+    const reviews = await Review.find({ productId: req.params.id })
+      .populate("userId", "name") // populate user name
+      .sort({ createdAt: -1 });
+
+    res.json({
+      ...product.toObject(),
+      orderCount,
+      reviews
+    });
 
   } catch (error) {
     console.log("ERROR:", error.message);
