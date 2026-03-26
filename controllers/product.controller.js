@@ -4,6 +4,7 @@ import SellerCart from "../models/SellerCart.js";
 import cloudinary from "../config/cloudinary.js";
 import Order from "../models/Order.js";
 import Review from "../models/Review.js";
+import { scrapeProduct } from "../utils/scraper.js";
 
 // ✅ ADD PRODUCT (ADMIN CATALOG)
 export const addProduct = async (req, res) => {
@@ -54,6 +55,67 @@ export const addProduct = async (req, res) => {
   }
 };
 
+
+
+// 🔥 BULK IMPORT 50 PRODUCTS
+export const bulkImportProducts = async (req, res) => {
+  try {
+    const { urls, categoryId } = req.body;
+
+    if (!urls || !Array.isArray(urls) || urls.length === 0) {
+      return res.status(400).json({ message: "No URLs provided" });
+    }
+
+    if (urls.length > 50) {
+      return res.status(400).json({ message: "Max 50 products allowed" });
+    }
+
+    let success = [];
+    let failed = [];
+
+    for (let url of urls) {
+      try {
+        const data = await scrapeProduct(url);
+
+        const product = new Product({
+          name: data.name,
+          price: data.price,
+          description: data.description,
+          images: data.images,
+          sizes: data.sizes,
+          colors: data.colors,
+          subcategory: data.subcategory,
+          category: categoryId,
+          stock: data.stock
+        });
+
+        await product.save();
+
+        success.push({
+          url,
+          name: product.name
+        });
+
+      } catch (err) {
+        console.log("FAILED URL:", url);
+        failed.push({ url, error: err.message });
+      }
+    }
+
+    res.json({
+      message: "Bulk import completed",
+      total: urls.length,
+      successCount: success.length,
+      failedCount: failed.length,
+      success,
+      failed
+    });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Bulk import failed" });
+  }
+};
 // ✅ GET SINGLE PRODUCT
 export const getSingleProduct = async (req, res) => {
   try {
