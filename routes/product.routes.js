@@ -11,7 +11,7 @@ import {
 
 import upload from "../middleware/upload.js";
 import authMiddleware from "../middleware/authMiddleware.js";
-
+import { bulkImportProducts } from "../controllers/product.controller.js";
 const router = express.Router();
 
 
@@ -32,5 +32,7 @@ router.post("/publish", authMiddleware, publishCart );
 
 // SELLER STORE PRODUCTS
 router.get("/seller", authMiddleware, getSellerProducts);
+router.post("/bulk-import", bulkImportProducts);
+
 
 export default router;
