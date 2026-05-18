@@ -7,7 +7,8 @@ import {
   getProductsByCategory,
   publishCart ,
   getSellerProducts,
-  getSingleProduct
+  getSingleProduct,
+  bulkImportProducts
 } from "../controllers/product.controller.js";
 
 import upload from "../middleware/upload.js";
