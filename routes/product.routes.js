@@ -15,7 +15,9 @@ import authMiddleware from "../middleware/authMiddleware.js";
 import { bulkImportProducts } from "../controllers/product.controller.js";
 const router = express.Router();
 
-
+const excelUpload = multer({
+  dest: "uploads/excel/"
+});
 
 // ✅ ADD PRODUCT (MULTIPLE IMAGES)
 router.post("/", upload.array("images", 5), addProduct); 
@@ -33,7 +35,11 @@ router.post("/publish", authMiddleware, publishCart );
 
 // SELLER STORE PRODUCTS
 router.get("/seller", authMiddleware, getSellerProducts);
-router.post("/bulk-import", bulkImportProducts);
+router.post(
+  "/bulk-import",
+  excelUpload.single("file"),
+  bulkImportProducts
+);
 
 
 export default router;
