@@ -5,6 +5,10 @@ import cloudinary from "../config/cloudinary.js";
 import Order from "../models/Order.js";
 import Review from "../models/Review.js";
 import { scrapeProduct } from "../utils/scraper.js";
+import XLSX from "xlsx";
+import fs from "fs-extra";
+import path from "path";
+import axios from "axios";
 
 // ✅ ADD PRODUCT (ADMIN CATALOG)
 export const addProduct = async (req, res) => {
@@ -60,60 +64,167 @@ export const addProduct = async (req, res) => {
 // 🔥 BULK IMPORT 50 PRODUCTS
 export const bulkImportProducts = async (req, res) => {
   try {
-    const { urls, categoryId } = req.body;
 
-    if (!urls || !Array.isArray(urls) || urls.length === 0) {
-      return res.status(400).json({ message: "No URLs provided" });
+    if (!req.file) {
+      return res.status(400).json({
+        message: "Excel file required"
+      });
     }
 
-    if (urls.length > 50) {
-      return res.status(400).json({ message: "Max 50 products allowed" });
-    }
+    // READ EXCEL
+    const workbook = XLSX.readFile(req.file.path);
 
-    let success = [];
-    let failed = [];
+    const sheetName = workbook.SheetNames[0];
 
-    for (let url of urls) {
+    const data = XLSX.utils.sheet_to_json(
+      workbook.Sheets[sheetName]
+    );
+
+    let insertedProducts = [];
+    let failedProducts = [];
+
+    for (const row of data) {
+
       try {
-        const data = await scrapeProduct(url);
 
+        // CHECK REQUIRED
+        if (!row.name || !row.price) {
+          failedProducts.push({
+            product: row.name || "Unknown",
+            reason: "Missing name or price"
+          });
+
+          continue;
+        }
+
+        // DUPLICATE CHECK
+        const existing = await Product.findOne({
+          name: row.name
+        });
+
+        if (existing) {
+          failedProducts.push({
+            product: row.name,
+            reason: "Product already exists"
+          });
+
+          continue;
+        }
+
+        // IMAGES
+        let uploadedImages = [];
+
+        if (row.images) {
+
+          const imageUrls = row.images
+            .split(",")
+            .map(url => url.trim());
+
+          for (const imageUrl of imageUrls) {
+
+            try {
+
+              const result = await cloudinary.uploader.upload(
+                imageUrl,
+                {
+                  folder: "products"
+                }
+              );
+
+              uploadedImages.push(
+                result.secure_url
+              );
+
+            } catch (imgErr) {
+
+              console.log(
+                "Image Upload Failed:",
+                imageUrl
+              );
+
+            }
+
+          }
+
+        }
+
+        // SIZES
+        const sizes = row.sizes
+          ? row.sizes.split(",").map(s => s.trim())
+          : [];
+
+        // COLORS
+        const colors = row.colors
+          ? row.colors.split(",").map(c => c.trim())
+          : [];
+
+        // CREATE PRODUCT
         const product = new Product({
-          name: data.name,
-          price: data.price,
-          description: data.description,
-          images: data.images,
-          sizes: data.sizes,
-          colors: data.colors,
-          subcategory: data.subcategory,
-          category: categoryId,
-          stock: data.stock
+
+          name: row.name,
+
+          price: Number(row.price),
+
+          stock: Number(row.stock || 0),
+
+          description: row.description || "",
+
+          category: row.category,
+
+          subcategory: row.subcategory || "",
+
+          sizes,
+
+          colors,
+
+          images: uploadedImages
+
         });
 
         await product.save();
 
-        success.push({
-          url,
-          name: product.name
-        });
+        insertedProducts.push(product.name);
 
       } catch (err) {
-        console.log("FAILED URL:", url);
-        failed.push({ url, error: err.message });
+
+        console.log(err);
+
+        failedProducts.push({
+          product: row.name || "Unknown",
+          reason: err.message
+        });
+
       }
+
     }
 
+    // DELETE EXCEL FILE
+    await fs.remove(req.file.path);
+
     res.json({
+
       message: "Bulk import completed",
-      total: urls.length,
-      successCount: success.length,
-      failedCount: failed.length,
-      success,
-      failed
+
+      total: data.length,
+
+      success: insertedProducts.length,
+
+      failed: failedProducts.length,
+
+      insertedProducts,
+
+      failedProducts
+
     });
 
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Bulk import failed" });
+  } catch (error) {
+
+    console.log(error);
+
+    res.status(500).json({
+      message: "Bulk import failed"
+    });
+
   }
 };
 // ✅ GET SINGLE PRODUCT
