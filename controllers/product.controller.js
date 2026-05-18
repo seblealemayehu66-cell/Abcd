@@ -154,15 +154,20 @@ export const bulkImportProducts = async (req, res) => {
           : [];
 
         // COLORS
-      const colors = row.colors
-  ? row.colors.split(",").map(c => {
-      const [name, image] = c.split(":");
-      return {
-        name: name?.trim(),
-        image: image?.trim()
-      };
-    })
+    const colorNames = row.colorNames
+  ? row.colorNames.split(",").map(c => c.trim())
   : [];
+
+// COLOR IMAGES
+const colorImages = row.colorImages
+  ? row.colorImages.split(",").map(i => i.trim())
+  : [];
+
+// CREATE COLOR OBJECTS
+const colors = colorNames.map((color, index) => ({
+  name: color,
+  image: colorImages[index] || uploadedImages[0] || ""
+}));
 
         // CREATE PRODUCT
         const product = new Product({
