@@ -71,6 +71,10 @@ export const bulkImportProducts = async (req, res) => {
       });
     }
 
+    const axios = (await import("axios")).default;
+    const path = await import("path");
+    const fsNative = await import("fs");
+
     // READ EXCEL
     const workbook = XLSX.readFile(req.file.path);
 
@@ -87,8 +91,9 @@ export const bulkImportProducts = async (req, res) => {
 
       try {
 
-        // CHECK REQUIRED
+        // REQUIRED CHECK
         if (!row.name || !row.price) {
+
           failedProducts.push({
             product: row.name || "Unknown",
             reason: "Missing name or price"
@@ -103,6 +108,7 @@ export const bulkImportProducts = async (req, res) => {
         });
 
         if (existing) {
+
           failedProducts.push({
             product: row.name,
             reason: "Product already exists"
@@ -111,35 +117,81 @@ export const bulkImportProducts = async (req, res) => {
           continue;
         }
 
-        // IMAGES
+        /**
+         * IMAGES
+         */
         let uploadedImages = [];
 
         if (row.images) {
 
           const imageUrls = row.images
             .split(",")
-            .map(url => url.trim());
+            .map(url => url.trim())
+            .filter(Boolean);
 
           for (const imageUrl of imageUrls) {
 
             try {
 
-              const result = await cloudinary.uploader.upload(
-                imageUrl,
-                {
-                  folder: "products"
-                }
+              /**
+               * DOWNLOAD IMAGE FIRST
+               * (fixes Amazon CDN issues)
+               */
+              const response = await axios({
+                url: imageUrl,
+                method: "GET",
+                responseType: "stream"
+              });
+
+              const fileName =
+                `temp-${Date.now()}-${Math.random()
+                  .toString(36)
+                  .substring(2, 8)}.jpg`;
+
+              const filePath = path.join(
+                process.cwd(),
+                fileName
               );
+
+              const writer =
+                fsNative.createWriteStream(filePath);
+
+              response.data.pipe(writer);
+
+              await new Promise((resolve, reject) => {
+                writer.on("finish", resolve);
+                writer.on("error", reject);
+              });
+
+              /**
+               * UPLOAD LOCAL FILE TO CLOUDINARY
+               */
+              const result =
+                await cloudinary.uploader.upload(
+                  filePath,
+                  {
+                    folder: "products"
+                  }
+                );
 
               uploadedImages.push(
                 result.secure_url
               );
 
+              /**
+               * DELETE TEMP FILE
+               */
+              fsNative.unlinkSync(filePath);
+
             } catch (imgErr) {
 
               console.log(
-                "Image Upload Failed:",
+                "IMAGE FAILED:",
                 imageUrl
+              );
+
+              console.log(
+                imgErr.message
               );
 
             }
@@ -148,27 +200,48 @@ export const bulkImportProducts = async (req, res) => {
 
         }
 
-        // SIZES
+        /**
+         * SIZES
+         */
         const sizes = row.sizes
-          ? row.sizes.split(",").map(s => s.trim())
+          ? row.sizes
+              .split(",")
+              .map(s => s.trim())
+              .filter(Boolean)
           : [];
 
-        // COLORS
-  const colorNames = row.colorNames
-  ? row.colorNames.split(",").map(c => c.trim()).filter(Boolean)
-  : [];
+        /**
+         * COLORS
+         */
+        const colorNames = row.colorNames
+          ? row.colorNames
+              .split(",")
+              .map(c => c.trim())
+              .filter(Boolean)
+          : [];
 
-const colorImages = row.colorImages
-  ? row.colorImages.split(",").map(i => i.trim()).filter(Boolean)
-  : [];
+        const colorImages = row.colorImages
+          ? row.colorImages
+              .split(",")
+              .map(i => i.trim())
+              .filter(Boolean)
+          : [];
 
-// SAFE ZIP (never breaks)
-const colors = colorNames.map((color, index) => ({
-  name: color,
-  image: colorImages[index] || uploadedImages[index] || uploadedImages[0] || ""
-}));
+        const colors = colorNames.map(
+          (color, index) => ({
+            name: color,
 
-        // CREATE PRODUCT
+            image:
+              colorImages[index] ||
+              uploadedImages[index] ||
+              uploadedImages[0] ||
+              ""
+          })
+        );
+
+        /**
+         * CREATE PRODUCT
+         */
         const product = new Product({
 
           name: row.name,
@@ -177,17 +250,21 @@ const colors = colorNames.map((color, index) => ({
 
           stock: Number(row.stock || 0),
 
-          description: row.description || "",
+          description:
+            row.description || "",
 
           category: row.category,
 
-          subcategory: row.subcategory || "",
+          subcategory:
+            row.subcategory || "",
 
           sizes,
 
           colors,
 
-          images: uploadedImages
+          images: uploadedImages,
+
+          isPublished: true
 
         });
 
@@ -208,7 +285,9 @@ const colors = colorNames.map((color, index) => ({
 
     }
 
-    // DELETE EXCEL FILE
+    /**
+     * DELETE EXCEL FILE
+     */
     await fs.remove(req.file.path);
 
     res.json({
