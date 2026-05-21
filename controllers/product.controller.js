@@ -63,55 +63,70 @@ export const addProduct = async (req, res) => {
 
 // 🔥 BULK IMPORT 50 PRODUCTS
 export const bulkImportProducts = async (req, res) => {
+
   try {
 
     if (!req.file) {
+
       return res.status(400).json({
         message: "Excel file required"
       });
+
     }
 
-    const axios = (await import("axios")).default;
-    const path = await import("path");
-    const fsNative = await import("fs");
+    const workbook =
+      XLSX.readFile(req.file.path);
 
-    // READ EXCEL
-    const workbook = XLSX.readFile(req.file.path);
+    const sheetName =
+      workbook.SheetNames[0];
 
-    const sheetName = workbook.SheetNames[0];
-
-    const data = XLSX.utils.sheet_to_json(
-      workbook.Sheets[sheetName]
-    );
+    const data =
+      XLSX.utils.sheet_to_json(
+        workbook.Sheets[sheetName]
+      );
 
     let insertedProducts = [];
+
     let failedProducts = [];
 
     for (const row of data) {
 
       try {
 
-        // REQUIRED CHECK
-        if (!row.name || !row.price) {
+        /**
+         * REQUIRED CHECK
+         */
+        if (
+          !row.name ||
+          !row.price
+        ) {
 
           failedProducts.push({
-            product: row.name || "Unknown",
-            reason: "Missing name or price"
+            product:
+              row.name || "Unknown",
+
+            reason:
+              "Missing name or price"
           });
 
           continue;
         }
 
-        // DUPLICATE CHECK
-        const existing = await Product.findOne({
-          name: row.name
-        });
+        /**
+         * DUPLICATE CHECK
+         */
+        const existing =
+          await Product.findOne({
+            name: row.name
+          });
 
         if (existing) {
 
           failedProducts.push({
             product: row.name,
-            reason: "Product already exists"
+
+            reason:
+              "Product already exists"
           });
 
           continue;
@@ -124,47 +139,73 @@ export const bulkImportProducts = async (req, res) => {
 
         if (row.images) {
 
-          const imageUrls = row.images
-            .split(",")
-            .map(url => url.trim())
-            .filter(Boolean);
+          const imageUrls =
+            row.images
+              .split(",")
+              .map(url => url.trim())
+              .filter(Boolean);
 
           for (const imageUrl of imageUrls) {
 
             try {
 
               /**
-               * DOWNLOAD IMAGE FIRST
-               * (fixes Amazon CDN issues)
+               * DOWNLOAD AMAZON IMAGE
                */
-              const response = await axios({
-                url: imageUrl,
-                method: "GET",
-                responseType: "stream"
-              });
+              const response =
+                await axios({
 
+                  url: imageUrl,
+
+                  method: "GET",
+
+                  responseType:
+                    "arraybuffer",
+
+                  timeout: 20000,
+
+                  headers: {
+
+                    "User-Agent":
+                      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36",
+
+                    "Accept":
+                      "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+
+                    "Referer":
+                      "https://www.amazon.com/",
+
+                    "Accept-Language":
+                      "en-US,en;q=0.9"
+
+                  }
+
+                });
+
+              /**
+               * TEMP FILE
+               */
               const fileName =
                 `temp-${Date.now()}-${Math.random()
                   .toString(36)
                   .substring(2, 8)}.jpg`;
 
-              const filePath = path.join(
-                process.cwd(),
-                fileName
-              );
-
-              const writer =
-                fsNative.createWriteStream(filePath);
-
-              response.data.pipe(writer);
-
-              await new Promise((resolve, reject) => {
-                writer.on("finish", resolve);
-                writer.on("error", reject);
-              });
+              const filePath =
+                path.join(
+                  process.cwd(),
+                  fileName
+                );
 
               /**
-               * UPLOAD LOCAL FILE TO CLOUDINARY
+               * SAVE IMAGE
+               */
+              await fs.writeFile(
+                filePath,
+                response.data
+              );
+
+              /**
+               * CLOUDINARY UPLOAD
                */
               const result =
                 await cloudinary.uploader.upload(
@@ -181,7 +222,9 @@ export const bulkImportProducts = async (req, res) => {
               /**
                * DELETE TEMP FILE
                */
-              fsNative.unlinkSync(filePath);
+              await fs.remove(
+                filePath
+              );
 
             } catch (imgErr) {
 
@@ -203,82 +246,108 @@ export const bulkImportProducts = async (req, res) => {
         /**
          * SIZES
          */
-        const sizes = row.sizes
-          ? row.sizes
-              .split(",")
-              .map(s => s.trim())
-              .filter(Boolean)
-          : [];
+        const sizes =
+          row.sizes
+            ? row.sizes
+                .split(",")
+                .map(s => s.trim())
+                .filter(Boolean)
+            : [];
 
         /**
-         * COLORS
+         * COLOR NAMES
          */
-        const colorNames = row.colorNames
-          ? row.colorNames
-              .split(",")
-              .map(c => c.trim())
-              .filter(Boolean)
-          : [];
+        const colorNames =
+          row.colorNames
+            ? row.colorNames
+                .split(",")
+                .map(c => c.trim())
+                .filter(Boolean)
+            : [];
 
-        const colorImages = row.colorImages
-          ? row.colorImages
-              .split(",")
-              .map(i => i.trim())
-              .filter(Boolean)
-          : [];
+        /**
+         * COLOR IMAGES
+         */
+        const colorImages =
+          row.colorImages
+            ? row.colorImages
+                .split(",")
+                .map(i => i.trim())
+                .filter(Boolean)
+            : [];
 
-        const colors = colorNames.map(
-          (color, index) => ({
-            name: color,
+        /**
+         * COLOR OBJECTS
+         */
+        const colors =
+          colorNames.map(
+            (color, index) => ({
 
-            image:
-              colorImages[index] ||
-              uploadedImages[index] ||
-              uploadedImages[0] ||
-              ""
-          })
-        );
+              name: color,
+
+              image:
+                colorImages[index] ||
+                uploadedImages[index] ||
+                uploadedImages[0] ||
+                ""
+
+            })
+          );
 
         /**
          * CREATE PRODUCT
          */
-        const product = new Product({
+        const product =
+          new Product({
 
-          name: row.name,
+            name: row.name,
 
-          price: Number(row.price),
+            price:
+              Number(row.price),
 
-          stock: Number(row.stock || 0),
+            stock:
+              Number(
+                row.stock || 0
+              ),
 
-          description:
-            row.description || "",
+            description:
+              row.description || "",
 
-          category: row.category,
+            category:
+              row.category,
 
-          subcategory:
-            row.subcategory || "",
+            subcategory:
+              row.subcategory || "",
 
-          sizes,
+            sizes,
 
-          colors,
+            colors,
 
-          images: uploadedImages,
+            images:
+              uploadedImages,
 
-          isPublished: true
+            isPublished: true
 
-        });
+          });
 
         await product.save();
 
-        insertedProducts.push(product.name);
+        insertedProducts.push(
+          product.name
+        );
 
       } catch (err) {
 
         console.log(err);
 
         failedProducts.push({
-          product: row.name || "Unknown",
-          reason: err.message
+
+          product:
+            row.name || "Unknown",
+
+          reason:
+            err.message
+
         });
 
       }
@@ -288,17 +357,22 @@ export const bulkImportProducts = async (req, res) => {
     /**
      * DELETE EXCEL FILE
      */
-    await fs.remove(req.file.path);
+    await fs.remove(
+      req.file.path
+    );
 
     res.json({
 
-      message: "Bulk import completed",
+      message:
+        "Bulk import completed",
 
       total: data.length,
 
-      success: insertedProducts.length,
+      success:
+        insertedProducts.length,
 
-      failed: failedProducts.length,
+      failed:
+        failedProducts.length,
 
       insertedProducts,
 
@@ -311,10 +385,12 @@ export const bulkImportProducts = async (req, res) => {
     console.log(error);
 
     res.status(500).json({
-      message: "Bulk import failed"
+      message:
+        "Bulk import failed"
     });
 
   }
+
 };
 // ✅ GET SINGLE PRODUCT
 export const getSingleProduct = async (req, res) => {
