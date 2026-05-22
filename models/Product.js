@@ -1,49 +1,95 @@
 import mongoose from "mongoose";
 
-const productSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: true,
-      trim: true
-    },
+const productSchema =
+  new mongoose.Schema(
 
-    price: {
-      type: Number,
-      required: true
-    },
+    {
 
-    images: [{ type: String }], 
+      name: {
+        type: String,
+        required: true,
+        trim: true
+      },
 
-    description: {
-      type: String,
-      default: ""
-    },
+      price: {
+        type: Number,
+        required: true
+      },
 
-    category: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
+      images: [
+        {
+          type: String
+        }
+      ],
+
+      description: {
+        type: String,
+        default: ""
+      },
+
+      category: {
+        type:
+          mongoose.Schema.Types.ObjectId,
+
+        ref: "Category"
+      },
+
       subcategory: {
-      type: String,
-      default: ""
+        type: String,
+        default: ""
+      },
+
+      seller: {
+        type:
+          mongoose.Schema.Types.ObjectId,
+
+        ref: "User"
+      },
+
+      isPublished: {
+        type: Boolean,
+        default: false
+      },
+
+      sizes: [
+        {
+          type: String
+        }
+      ],
+
+      /**
+       * REAL ECOMMERCE COLORS
+       */
+      colors: [
+
+        {
+
+          name: {
+            type: String
+          },
+
+          image: {
+            type: String
+          }
+
+        }
+
+      ],
+
+      stock: {
+        type: Number,
+        default: 0
+      }
+
     },
 
-    seller: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User"
-    },
-
-    isPublished: {
-      type: Boolean,
-      default: false
-    },
-  sizes: [{ type: String }],       // e.g. ["S", "M", "L", "XL"]
-  colors: [{ type: String }],
-
-    stock: {
-      type: Number,
-      default: 0
+    {
+      timestamps: true
     }
-  },
-  { timestamps: true }
-);
 
-export default mongoose.model("Product", productSchema);
+  );
+
+export default mongoose.model(
+  "Product",
+  productSchema
+);
