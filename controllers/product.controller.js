@@ -512,7 +512,6 @@ export const getProducts = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-
 // ✅ GET PRODUCTS BY CATEGORY
 export const getProductsByCategory = async (req, res) => {
   try {
