@@ -534,21 +534,72 @@ export const getProducts = async (req, res) => {
 // ✅ GET PRODUCTS BY CATEGORY
 export const getProductsByCategory = async (req, res) => {
   try {
+
     const { categoryId } = req.params;
-    const { subcategory } = req.query;
 
-    let filter = { category: categoryId };
-    if (subcategory) filter.subcategory = subcategory;
+    const {
+      subcategory,
+      page = 1,
+      limit = 40,
+      search = "",
+    } = req.query;
 
-    const products = await Product.find(filter).populate("category");
-    res.json(products);
+    let filter = {
+      category: categoryId,
+    };
+
+    // SUBCATEGORY FILTER
+    if (subcategory) {
+      filter.subcategory = subcategory;
+    }
+
+    // SEARCH FILTER
+    if (search) {
+      filter.name = {
+        $regex: search,
+        $options: "i",
+      };
+    }
+
+    // TOTAL
+    const total = await Product.countDocuments(filter);
+
+    // PRODUCTS
+    const products = await Product.find(filter)
+      .populate("category")
+      .skip((page - 1) * limit)
+      .limit(Number(limit))
+      .sort({ createdAt: -1 });
+
+    // SUBCATEGORIES
+    const allSubProducts = await Product.find({
+      category: categoryId,
+    }).select("subcategory");
+
+    const subcategories = [
+      ...new Set(
+        allSubProducts
+          .map((p) => p.subcategory)
+          .filter(Boolean)
+      ),
+    ];
+
+    res.json({
+      products,
+      subcategories,
+      total,
+      currentPage: Number(page),
+      totalPages: Math.ceil(total / limit),
+    });
 
   } catch (error) {
     console.log(error);
-    res.status(500).json({ message: "Server error" });
+
+    res.status(500).json({
+      message: "Server error",
+    });
   }
 };
-
 // ✅ SELLER PUBLISH PRODUCTS
 export const publishCart = async (req, res) => {
   try {
