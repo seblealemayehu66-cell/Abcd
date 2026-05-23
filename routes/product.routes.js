@@ -5,45 +5,41 @@ import {
   addProduct,
   getProducts,
   getProductsByCategory,
-  publishCart,
+  publishCart ,
   getSellerProducts,
   getSingleProduct,
-  bulkImportProducts
 } from "../controllers/product.controller.js";
 
 import upload from "../middleware/upload.js";
 import authMiddleware from "../middleware/authMiddleware.js";
-
+import { bulkImportProducts } from "../controllers/product.controller.js";
 const router = express.Router();
 
 const excelUpload = multer({
   dest: "uploads/excel/"
 });
 
+// ✅ ADD PRODUCT (MULTIPLE IMAGES)
+router.post("/", upload.array("images", 5), addProduct); 
 
-// ========================
-// 🔥 PRODUCT ROUTES (IMPORTANT ORDER FIX)
-// ========================
-
-// ADD PRODUCT
-router.post("/", upload.array("images", 5), addProduct);
-
-// GET PRODUCTS (PAGINATED)
 router.get("/", getProducts);
+router.get("/:id", getSingleProduct);
+  
 
-// GET BY CATEGORY (MUST BE BEFORE /:id)
 router.get("/category/:categoryId", getProductsByCategory);
 
-// SELLER PRODUCTS
+
+// SELLER PUBLISH
+router.post("/publish", authMiddleware, publishCart );
+
+
+// SELLER STORE PRODUCTS
 router.get("/seller", authMiddleware, getSellerProducts);
+router.post(
+  "/bulk-import",
+  excelUpload.single("file"),
+  bulkImportProducts
+);
 
-// BULK IMPORT
-router.post("/bulk-import", excelUpload.single("file"), bulkImportProducts);
-
-// PUBLISH CART
-router.post("/publish", authMiddleware, publishCart);
-
-// SINGLE PRODUCT (KEEP LAST)
-router.get("/:id", getSingleProduct);
 
 export default router;
