@@ -495,7 +495,6 @@ export const getProducts = async (req, res) => {
 
     const products = await Product.find(filter)
       .populate("category")
-      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit));
 
@@ -505,11 +504,11 @@ export const getProducts = async (req, res) => {
       products,
       total,
       page: Number(page),
-      pages: Math.ceil(total / limit),
+      totalPages: Math.ceil(total / limit)
     });
 
   } catch (error) {
-    console.log("GET PRODUCTS ERROR:", error);
+    console.log(error);
     res.status(500).json({ message: "Server error" });
   }
 };
