@@ -23,10 +23,11 @@ const excelUpload = multer({
 router.post("/", upload.array("images", 5), addProduct); 
 
 router.get("/", getProducts);
-router.get("/:id", getSingleProduct);
   
 
 router.get("/category/:categoryId", getProductsByCategory);
+
+router.get("/:id", getSingleProduct);
 
 
 // SELLER PUBLISH
