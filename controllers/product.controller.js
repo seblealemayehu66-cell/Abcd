@@ -485,36 +485,42 @@ export const getSingleProduct = async (req, res) => {
 // ✅ GET ALL PRODUCTS
 export const getProducts = async (req, res) => {
   try {
-    const { category, subcategory, page = 1, limit = 35 } = req.query;
+    const {
+      category,
+      subcategory,
+      page = 1,
+      limit = 35,
+      search = ""
+    } = req.query;
 
     const filter = {};
+
     if (category) filter.category = category;
     if (subcategory) filter.subcategory = subcategory;
 
-    const pageNum = Number(page);
-    const limitNum = Number(limit);
-    const skip = (pageNum - 1) * limitNum;
+    if (search) {
+      filter.name = { $regex: search, $options: "i" };
+    }
 
-    // 🚀 FAST QUERY (ONLY NEEDED FIELDS)
+    const skip = (Number(page) - 1) * Number(limit);
+
     const products = await Product.find(filter)
-      .select("name price images stock category subcategory")
       .populate("category", "name")
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limitNum)
-      .lean(); // 🔥 VERY IMPORTANT (faster response)
+      .limit(Number(limit));
 
     const total = await Product.countDocuments(filter);
 
     res.json({
       products,
       total,
-      page: pageNum,
-      totalPages: Math.ceil(total / limitNum),
+      page: Number(page),
+      pages: Math.ceil(total / limit)
     });
 
   } catch (error) {
-    console.log("GET PRODUCTS ERROR:", error);
+    console.log(error);
     res.status(500).json({ message: "Server error" });
   }
 };
