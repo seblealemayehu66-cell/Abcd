@@ -483,20 +483,54 @@ export const getSingleProduct = async (req, res) => {
 };
 
 // ✅ GET ALL PRODUCTS
-export const getProducts = async (req, res) => { 
-try { 
-const { category, subcategory } = req.query; 
-let filter = {}; 
-if (category) filter.category = category; 
-if (subcategory) filter.subcategory = subcategory; 
-const products = await Product.find(filter).populate("category"); 
-res.json(products); 
-} catch (error) { 
-console.log(error); 
-res.status(500).json({ message: "Server error" }); 
-} 
-};
+// ✅ GET ALL PRODUCTS WITH PAGINATION
+export const getProducts = async (req, res) => {
+  try {
 
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 35;
+
+    const skip = (page - 1) * limit;
+
+    const { category, subcategory } = req.query;
+
+    let filter = {};
+
+    if (category) {
+      filter.category = category;
+    }
+
+    if (subcategory) {
+      filter.subcategory = subcategory;
+    }
+
+    // ONLY FETCH SMALL AMOUNT
+    const products = await Product.find(filter)
+      .populate("category")
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    // TOTAL COUNT
+    const total = await Product.countDocuments(filter);
+
+    res.json({
+      products,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit)
+    });
+
+  } catch (error) {
+
+    console.log(error);
+
+    res.status(500).json({
+      message: "Server error"
+    });
+
+  }
+};
 // ✅ GET PRODUCTS BY CATEGORY
 export const getProductsByCategory = async (req, res) => {
   try {
