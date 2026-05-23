@@ -485,21 +485,35 @@ export const getSingleProduct = async (req, res) => {
 // ✅ GET ALL PRODUCTS
 export const getProducts = async (req, res) => {
   try {
-    const { category, subcategory } = req.query;
+    const { category, subcategory, page = 1, limit = 20 } = req.query;
 
     let filter = {};
     if (category) filter.category = category;
     if (subcategory) filter.subcategory = subcategory;
 
-    const products = await Product.find(filter).populate("category");
-    res.json(products);
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const products = await Product.find(filter)
+      .select("name price images stock sizes colors category")
+      .populate("category", "name")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit));
+
+    const total = await Product.countDocuments(filter);
+
+    res.json({
+      products,
+      total,
+      page: Number(page),
+      pages: Math.ceil(total / limit)
+    });
 
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Server error" });
   }
 };
-
 // ✅ GET PRODUCTS BY CATEGORY
 export const getProductsByCategory = async (req, res) => {
   try {
