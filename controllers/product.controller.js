@@ -379,7 +379,7 @@ export const bulkImportProducts =
               images:
                 uploadedImages,
 
-              isPublished: true
+              isPublished: false
 
             });
 
