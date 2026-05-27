@@ -170,13 +170,14 @@ export const pickOrder = async (req, res) => {
   try {
     const orderId = req.params.id;
 
-    const order = await Order.findById(orderId).populate("productId");
+    const order = await Order.findById(orderId)
+      .populate("productId");
 
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // ✅ Prevent double pick
+    // ❌ prevent double pick
     if (order.status !== "pending") {
       return res.status(400).json({ message: "Order already picked" });
     }
@@ -187,19 +188,18 @@ export const pickOrder = async (req, res) => {
       return res.status(401).json({ message: "Seller not authenticated" });
     }
 
-    // ✅ SAFETY: sellerId must exist
+    // safety check
     if (!order.sellerId) {
       return res.status(400).json({
-        message: "Order has no seller assigned (old/broken order)",
+        message: "Order has no seller assigned",
       });
     }
 
-    // ✅ SAFETY: correct seller
     if (order.sellerId.toString() !== seller._id.toString()) {
       return res.status(403).json({ message: "This is not your order" });
     }
 
-    // ✅ Get seller product
+    // get seller product
     const sellerProduct = await SellerProduct.findOne({
       sellerId: seller._id,
       productId: order.productId._id,
@@ -211,55 +211,63 @@ export const pickOrder = async (req, res) => {
 
     const quantity = order.quantity || 1;
 
-    // ✅ Check seller stock FIRST
+    // stock check
     if (sellerProduct.stock < quantity) {
       return res.status(400).json({ message: "Not enough seller stock" });
     }
 
-    // ✅ Check global product
     const product = await Product.findById(order.productId._id);
 
     if (!product) {
-      return res.status(404).json({ message: "Global product not found" });
+      return res.status(404).json({ message: "Product not found" });
     }
 
     if (product.stock < quantity) {
-      return res.status(400).json({ message: "Not enough global stock" });
-    }
-
-    // ✅ Check wallet BEFORE deduction
-    if ((seller.wallet?.balance || 0) < order.buyPrice) {
-      return res.status(400).json({ message: "Insufficient wallet balance" });
+      return res.status(400).json({ message: "Not enough product stock" });
     }
 
     /* =========================
-       🔥 ALL CHECKS PASSED
-       NOW UPDATE (SAFE ZONE)
+       💰 WALLET FIX (USDT VERSION)
     ========================= */
 
-    // 👉 Deduct seller stock
+    const usdtBalance = seller?.wallet?.balances?.USDT || 0;
+
+    if (usdtBalance < order.buyPrice) {
+      return res.status(400).json({
+        message: "Insufficient USDT balance",
+      });
+    }
+
+    /* =========================
+       🔥 APPLY CHANGES
+    ========================= */
+
+    // seller stock
     sellerProduct.stock -= quantity;
     if (sellerProduct.stock < 0) sellerProduct.stock = 0;
     await sellerProduct.save();
 
-    // 👉 Deduct global stock
+    // product stock
     product.stock -= quantity;
     if (product.stock < 0) product.stock = 0;
     await product.save();
 
-    // 👉 Deduct wallet
-    seller.wallet.balance -= order.buyPrice;
+    // 💰 deduct USDT
+    seller.wallet.balances.USDT -= order.buyPrice;
 
+    // ensure transactions array exists
     seller.wallet.transactions = seller.wallet.transactions || [];
+
     seller.wallet.transactions.push({
       type: "debit",
+      currency: "USDT",
       amount: order.buyPrice,
       note: `Order pickup - ${product.name}`,
     });
 
     await seller.save();
 
-    // 👉 Update order LAST (VERY IMPORTANT)
+    // update order
     order.status = "processing";
     order.frozenAmount = order.price;
     order.deliveryDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
@@ -272,7 +280,7 @@ export const pickOrder = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("🔥 Pick Order Crash:", err);
+    console.error("Pick Order Error:", err);
 
     return res.status(500).json({
       message: "Server error while picking order",
