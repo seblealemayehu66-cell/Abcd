@@ -3,6 +3,9 @@ import express from "express";
 import cors from "cors";
 import reviewRoutes from "./routes/review.routes.js";
 
+import adminWalletRoutes from "./routes/adminWallet.routes.js";
+
+
 
 
 
@@ -89,6 +92,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api", newsRoutes);
 app.use("/api/checkout", checkoutRoutes);
+app.use("/api/admin/wallet", adminWalletRoutes);
 
 
 
