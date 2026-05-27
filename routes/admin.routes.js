@@ -6,6 +6,12 @@ import Order from "../models/Order.js";
 import { placeOrder } from "../controllers/order.controller.js";
 import { getAllSellers, approveSeller, rejectSeller, loginAsSeller } from "../controllers/auth.controller.js";
 
+import { getAllUsers } from "../controllers/admin.controller.js";
+
+
+
+
+
 
 const router = express.Router();
 
@@ -17,6 +23,7 @@ router.post("/orders/place", authMiddleware, placeOrder);
 router.get("/sellers", authMiddleware, getAllSellers);
 // Login as seller (admin impersonates)
 router.get("/sellers/login-as/:userId", authMiddleware, loginAsSeller);
+router.get("/users", getAllUsers);
 
 
 // Approve seller
@@ -115,6 +122,7 @@ router.post("/orders/place", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 
 
