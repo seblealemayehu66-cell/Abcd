@@ -46,22 +46,107 @@ export const processPayment = async (req, res) => {
     });
 
     // Wallet payment
-    if (paymentMethod === "wallet") {
-      if ((user.wallet?.balance || 0) < totalAmount)
-        return res.status(400).json({ message: "Insufficient wallet balance" });
+   // =========================
+// WALLET + MULTI-COIN PAYMENT
+// =========================
+if (paymentMethod === "wallet") {
+  const balance = user.wallet?.balances?.USDT || 0;
 
-      user.wallet.balance -= totalAmount;
-      user.wallet.transactions = user.wallet.transactions || [];
-      user.wallet.transactions.push({ type: "debit", amount: totalAmount, note: "Order Payment" });
-      await user.save();
-    }
+  if (balance < totalAmount) {
+    return res.status(400).json({
+      message: "Insufficient USDT balance",
+    });
+  }
 
-    // Other payment methods simulate success
-    else if (["usdt_trc20", "usdt_erc20", "Credit Card"].includes(paymentMethod)) {
-      // Payment success simulation
-    } else {
-      return res.status(400).json({ message: "Invalid payment method" });
-    }
+  user.wallet.balances.USDT -= totalAmount;
+
+  user.wallet.transactions.push({
+    coin: "USDT",
+    type: "debit",
+    amount: totalAmount,
+    note: "Order Payment (USDT)",
+  });
+}
+
+// =========================
+// BTC PAYMENT
+// =========================
+else if (paymentMethod === "btc") {
+  const balance = user.wallet?.balances?.BTC || 0;
+
+  if (balance < totalAmount) {
+    return res.status(400).json({
+      message: "Insufficient BTC balance",
+    });
+  }
+
+  user.wallet.balances.BTC -= totalAmount;
+
+  user.wallet.transactions.push({
+    coin: "BTC",
+    type: "debit",
+    amount: totalAmount,
+    note: "Order Payment (BTC)",
+  });
+}
+
+// =========================
+// ETH PAYMENT
+// =========================
+else if (paymentMethod === "eth") {
+  const balance = user.wallet?.balances?.ETH || 0;
+
+  if (balance < totalAmount) {
+    return res.status(400).json({
+      message: "Insufficient ETH balance",
+    });
+  }
+
+  user.wallet.balances.ETH -= totalAmount;
+
+  user.wallet.transactions.push({
+    coin: "ETH",
+    type: "debit",
+    amount: totalAmount,
+    note: "Order Payment (ETH)",
+  });
+}
+
+// =========================
+// SOL PAYMENT
+// =========================
+else if (paymentMethod === "sol") {
+  const balance = user.wallet?.balances?.SOL || 0;
+
+  if (balance < totalAmount) {
+    return res.status(400).json({
+      message: "Insufficient SOL balance",
+    });
+  }
+
+  user.wallet.balances.SOL -= totalAmount;
+
+  user.wallet.transactions.push({
+    coin: "SOL",
+    type: "debit",
+    amount: totalAmount,
+    note: "Order Payment (SOL)",
+  });
+}
+
+// =========================
+// OTHER CRYPTO (USDT NETWORKS)
+// =========================
+else if (
+  ["usdt_trc20", "usdt_erc20"].includes(paymentMethod)
+) {
+  // simulate success (no deduction)
+}
+else {
+  return res.status(400).json({
+    message: "Invalid payment method",
+  });
+}
 
     // Create orders
     const orders = [];
