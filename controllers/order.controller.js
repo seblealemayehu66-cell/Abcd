@@ -10,24 +10,31 @@ export const placeOrder = async (req, res) => {
   try {
     const { buyerId, customerId, productId, quantity } = req.body;
 
-    const buyer = await User.findById(buyerId);
-    if (!buyer || !buyer.isVirtualBuyer)
-      return res.status(400).json({ message: "Invalid virtual buyer" });
-
-    const customer = await User.findById(customerId);
-    if (!customer)
-      return res.status(400).json({ message: "Customer not found" });
-
-    const product = await Product.findById(productId);
-    if (!product)
-      return res.status(400).json({ message: "Product not found" });
-
     const qty = quantity || 1;
 
-    if (product.stock < qty)
-      return res.status(400).json({ message: "Not enough product stock" });
+    // 🔥 Validate buyer
+    const buyer = await User.findById(buyerId);
+    if (!buyer || !buyer.isVirtualBuyer) {
+      return res.status(400).json({ message: "Invalid virtual buyer" });
+    }
 
-    // ✅ GET SELLER FROM SellerProduct 🔥
+    // 🔥 Validate customer
+    const customer = await User.findById(customerId);
+    if (!customer) {
+      return res.status(400).json({ message: "Customer not found" });
+    }
+
+    // 🔥 Validate product
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(400).json({ message: "Product not found" });
+    }
+
+    if (product.stock < qty) {
+      return res.status(400).json({ message: "Not enough stock" });
+    }
+
+    // 💥 IMPORTANT FIX: find seller from SellerProduct table
     const sellerProduct = await SellerProduct.findOne({
       productId: productId,
     });
@@ -38,31 +45,37 @@ export const placeOrder = async (req, res) => {
       });
     }
 
-    const buyPrice = product.price * 0.8;
+    // 💰 pricing logic
+    const sellPrice = sellerProduct.price * qty;
+    const buyPrice = sellerProduct.price * 0.8 * qty;
 
+    // 📦 CREATE ORDER (CRITICAL FIX HERE)
     const order = new Order({
       buyerId,
       customerId,
       productId,
-      sellerId: sellerProduct.sellerId, // ✅ FIXED
-      price: product.price * qty,
-      buyPrice: buyPrice * qty,
+      sellerId: sellerProduct.sellerId, // 🔥 THIS FIXES YOUR ISSUE
+      price: sellPrice,
+      buyPrice: buyPrice,
       quantity: qty,
       status: "pending",
+      isPaid: false,
+      paymentMethod: "wallet",
+      frozenAmount: 0,
     });
 
     await order.save();
 
-    res.json({
+    res.status(201).json({
       message: "Order placed successfully",
       order,
     });
+
   } catch (err) {
     console.error("Place Order Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
-
 /* =========================
    ✅ CUSTOMER ORDERS
 ========================= */
