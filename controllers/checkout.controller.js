@@ -132,7 +132,7 @@ export const processPayment = async (req, res) => {
         });
       }
     } 
-    else if (paymentMethod === "BTC") {
+    else if (paymentMethod === "btc") {
       if (!deductCoin("BTC")) {
         return res.status(400).json({
           message: "Insufficient BTC balance",
