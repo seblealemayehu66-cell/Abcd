@@ -18,7 +18,7 @@ const ticketSchema = new mongoose.Schema(
 
     department: {
       type: String,
-      enum: ["it", "personal"],
+      enum: ["it", "personal","payment","shipping","aftersale","sourcing"],
     },
 
     status: { type: String, default: "Open" },
