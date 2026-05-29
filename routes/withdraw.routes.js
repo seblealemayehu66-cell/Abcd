@@ -1,7 +1,7 @@
 
 import express from "express";
 import Withdraw from "../models/Withdraw.js";
-import auth from "../middleware/auth.js";
+import {auth} from "../middleware/auth.js";
 import User from "../models/User.js";
 
 const router = express.Router();
