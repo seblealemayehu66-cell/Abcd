@@ -4,6 +4,22 @@ import cors from "cors";
 import reviewRoutes from "./routes/review.routes.js";
 
 import adminWalletRoutes from "./routes/adminWallet.routes.js";
+import withdrawRoutes from "./routes/withdraw.routes.js";
+import adminWithdrawRoutes from "./routes/admin.withdraw.routes.js";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -91,6 +107,9 @@ app.use("/api/admin/support", adminSupportRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/notifications", notificationsRoutes);
 app.use("/api/wallet", walletRoutes);
+
+app.use("/api/withdraw", withdrawRoutes);
+app.use("/api/admin/withdraws", adminWithdrawRoutes);
 app.use("/api/reviews", reviewRoutes);
 
 app.use("/api/orders", orderRoutes);
@@ -144,3 +163,14 @@ const PORT = process.env.PORT || 8080;
 app.listen(PORT, () =>
   console.log(`Server running on port ${PORT} 🚀`)
 );
+
+
+
+
+
+
+
+
+
+
+
