@@ -1,29 +1,43 @@
 import express from "express";
-import { register, login } from "../controllers/auth.controller.js";
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
+
+import {
+  register,
+  login
+} from "../controllers/auth.controller.js";
 
 const router = express.Router();
 
 router.post("/register", register);
+
 router.post("/login", login);
+
+// ================= GET CURRENT USER =================
 router.get("/me", async (req, res) => {
 
   try {
 
-    const token = req.headers.authorization?.split(" ")[1];
+    const authHeader =
+      req.headers.authorization;
 
-    if (!token) {
+    if (!authHeader) {
       return res.status(401).json({
-        message: "No token"
+        message: "No token provided"
       });
     }
+
+    const token =
+      authHeader.split(" ")[1];
 
     const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET
     );
 
-    const user = await User.findById(decoded.id)
-      .select("-password");
+    const user = await User.findById(
+      decoded.id
+    ).select("-password");
 
     if (!user) {
       return res.status(404).json({
