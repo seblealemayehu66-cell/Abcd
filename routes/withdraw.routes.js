@@ -1,7 +1,7 @@
 
 import express from "express";
 import Withdraw from "../models/Withdraw.js";
-import {auth} from "../middleware/auth.js";
+import authMiddleware from "../middleware/authMiddleware.js";
 import User from "../models/User.js";
 
 const router = express.Router();
@@ -10,7 +10,7 @@ const router = express.Router();
 // =======================
 // CREATE WITHDRAW REQUEST
 // =======================
-router.post("/", auth, async (req, res) => {
+router.post("/", authMiddleware, async (req, res) => {
   try {
     const { coin, network, address, amount } = req.body;
 
@@ -38,7 +38,7 @@ router.post("/", auth, async (req, res) => {
 // =======================
 // USER WITHDRAW HISTORY
 // =======================
-router.get("/my", auth, async (req, res) => {
+router.get("/my", authMiddleware, async (req, res) => {
   const history = await Withdraw.find({
     userId: req.user.id
   }).sort({ createdAt: -1 });
