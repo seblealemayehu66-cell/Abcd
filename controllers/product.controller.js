@@ -505,11 +505,20 @@ export const getProducts = async (req, res) => {
     }
 
     // ONLY FETCH SMALL AMOUNT
-    const products = await Product.find(filter)
-      .populate("category")
-      .skip(skip)
-      .limit(limit)
-      .lean();
+const products = await Product.find(filter)
+
+  .populate("category")
+
+  .populate({
+    path: "seller",
+    select: "shop"
+  })
+
+  .skip(skip)
+
+  .limit(limit)
+
+  .lean();
 
     // TOTAL COUNT
     const total = await Product.countDocuments(filter);
