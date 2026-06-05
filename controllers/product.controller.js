@@ -485,134 +485,51 @@ export const getSingleProduct = async (req, res) => {
 // ✅ GET ALL PRODUCTS
 // ✅ GET ALL PRODUCTS WITH PAGINATION
 // ✅ GET ALL PRODUCTS
-export const getProducts = async (req, res) => {
+export const getProducts = async (req, res) => {try {
 
-  try {
+const page = Number(req.query.page) || 1;
+const limit = Number(req.query.limit) || 35;
 
-    const page =
-      Number(req.query.page) || 1;
+const skip = (page - 1) * limit;
 
-    const limit =
-      Number(req.query.limit) || 35;
+const { category, subcategory } = req.query;
 
-    const skip =
-      (page - 1) * limit;
+let filter = {};
 
-    const {
-      category,
-      subcategory
-    } = req.query;
+if (category) {
+  filter.category = category;
+}
 
-    /*
-      PRODUCT FILTER
-    */
-    let filter = {};
+if (subcategory) {
+  filter.subcategory = subcategory;
+}
 
-    if (category) {
-      filter.category = category;
-    }
+// ONLY FETCH SMALL AMOUNT
+const products = await Product.find(filter)
+  .populate("category")
+  .skip(skip)
+  .limit(limit)
+  .lean();
 
-    if (subcategory) {
-      filter.subcategory = subcategory;
-    }
+// TOTAL COUNT
+const total = await Product.countDocuments(filter);
 
-    /*
-      GET PRODUCTS
-    */
-    const products =
-      await Product.find(filter)
+res.json({
+  products,
+  total,
+  page,
+  totalPages: Math.ceil(total / limit)
+});
 
-        .populate("category")
+} catch (error) {
 
-        .skip(skip)
+console.log(error);
 
-        .limit(limit)
+res.status(500).json({
+  message: "Server error"
+});
 
-        .lean();
-
-    /*
-      GET SELLER PRODUCTS
-    */
-    const sellerProducts =
-      await SellerProduct.find()
-
-        .populate({
-          path: "sellerId",
-          select: "shop"
-        })
-
-        .lean();
-
-    /*
-      ATTACH SELLER
-    */
-    const finalProducts =
-      products.map((product) => {
-
-        const sellerProduct =
-          sellerProducts.find(
-            (sp) =>
-
-              sp.productId?.toString() ===
-              product._id.toString()
-          );
-
-        return {
-
-          ...product,
-
-          seller:
-            sellerProduct?.sellerId || null,
-
-          sellerPrice:
-            sellerProduct?.price ||
-            product.price,
-
-          sellerStock:
-            sellerProduct?.stock ||
-            product.stock
-
-        };
-
-      });
-
-    /*
-      TOTAL
-    */
-    const total =
-      await Product.countDocuments(
-        filter
-      );
-
-    /*
-      RESPONSE
-    */
-    res.json({
-
-      products:
-        finalProducts,
-
-      total,
-
-      page,
-
-      totalPages:
-        Math.ceil(total / limit)
-
-    });
-
-  } catch (error) {
-
-    console.log(error);
-
-    res.status(500).json({
-      message: "Server error"
-    });
-
-  }
-
-};
-
+}};
 // ✅ GET PRODUCTS BY CATEGORY
 export const getProductsByCategory = async (req, res) => {
   try {
