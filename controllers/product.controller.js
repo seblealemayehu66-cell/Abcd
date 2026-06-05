@@ -499,6 +499,20 @@ export const getProducts = async (req, res) => {
       (page - 1) * limit;
 
     /*
+      GET NORMAL PRODUCTS
+    */
+    const products =
+      await Product.find()
+
+        .populate("category")
+
+        .skip(skip)
+
+        .limit(limit)
+
+        .lean();
+
+    /*
       GET SELLER PRODUCTS
     */
     const sellerProducts =
@@ -509,74 +523,52 @@ export const getProducts = async (req, res) => {
           select: "shop"
         })
 
-        .populate({
-          path: "productId",
-          populate: {
-            path: "category"
-          }
-        })
-
-        .skip(skip)
-
-        .limit(limit)
-
         .lean();
 
     /*
-      FORMAT PRODUCTS
+      ATTACH SELLER
     */
-    const products =
-      sellerProducts.map((item) => ({
+    const finalProducts =
+      products.map((product) => {
 
-        _id: item.productId?._id,
+        const sellerProduct =
+          sellerProducts.find(
+            (sp) =>
 
-        name:
-          item.productId?.name,
+              sp.productId?.toString() ===
+              product._id.toString()
+          );
 
-        images:
-          item.productId?.images,
+        return {
 
-        description:
-          item.productId?.description,
+          ...product,
 
-        category:
-          item.productId?.category,
+          seller:
+            sellerProduct?.sellerId || null,
 
-        subcategory:
-          item.productId?.subcategory,
+          sellerPrice:
+            sellerProduct?.price || product.price,
 
-        sizes:
-          item.productId?.sizes,
+          sellerStock:
+            sellerProduct?.stock || product.stock
 
-        colors:
-          item.productId?.colors,
+        };
 
-        isPublished:
-          item.productId?.isPublished,
-
-        seller:
-          item.sellerId,
-
-        price:
-          item.price,
-
-        stock:
-          item.stock
-
-      }));
+      });
 
     /*
       TOTAL
     */
     const total =
-      await SellerProduct.countDocuments();
+      await Product.countDocuments();
 
     /*
       RESPONSE
     */
     res.json({
 
-      products,
+      products:
+        finalProducts,
 
       total,
 
