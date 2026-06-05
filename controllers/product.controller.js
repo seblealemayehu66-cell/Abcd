@@ -4,6 +4,7 @@ import SellerCart from "../models/SellerCart.js";
 import cloudinary from "../config/cloudinary.js";
 import Order from "../models/Order.js";
 import Review from "../models/Review.js";
+import User from "../models/User.js";
 import { scrapeProduct } from "../utils/scraper.js";
 import XLSX from "xlsx";
 import fs from "fs-extra";
@@ -60,6 +61,61 @@ export const addProduct = async (req, res) => {
 };
 
 
+
+// ✅ GET SHOP PRODUCTS BY SHOP NAME
+export const getProductsByShopName = async (req, res) => {
+  try {
+    const { shopName } = req.params;
+
+    if (!shopName) {
+      return res.status(400).json({ message: "Shop name is required" });
+    }
+
+    // 1. FIND SELLER BY SHOP NAME
+    const seller = await User.findOne({
+      "shop.name": { $regex: shopName, $options: "i" },
+      isSeller: true
+    });
+
+    if (!seller) {
+      return res.status(404).json({ message: "Shop not found" });
+    }
+
+    // 2. GET SELLER PRODUCTS
+    const sellerProducts = await SellerProduct.find({
+      sellerId: seller._id
+    }).populate({
+      path: "productId",
+      populate: { path: "category" }
+    });
+
+    // 3. FORMAT RESPONSE (IMPORTANT FOR FRONTEND)
+    const products = sellerProducts
+      .filter((p) => p.productId)
+      .map((p) => ({
+        _id: p._id,
+        price: p.price,
+        stock: p.stock,
+        productId: {
+          _id: p.productId._id,
+          name: p.productId.name,
+          images: p.productId.images,
+          category: p.productId.category,
+          description: p.productId.description
+        }
+      }));
+
+    res.json({
+      shop: seller.shop,
+      sellerId: seller._id,
+      products
+    });
+
+  } catch (error) {
+    console.log("SHOP ERROR:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 
 // 🔥 BULK IMPORT 50 PRODUCTS
 
