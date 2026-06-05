@@ -498,11 +498,29 @@ export const getProducts = async (req, res) => {
     const skip =
       (page - 1) * limit;
 
+    const {
+      category,
+      subcategory
+    } = req.query;
+
     /*
-      GET NORMAL PRODUCTS
+      PRODUCT FILTER
+    */
+    let filter = {};
+
+    if (category) {
+      filter.category = category;
+    }
+
+    if (subcategory) {
+      filter.subcategory = subcategory;
+    }
+
+    /*
+      GET PRODUCTS
     */
     const products =
-      await Product.find()
+      await Product.find(filter)
 
         .populate("category")
 
@@ -547,10 +565,12 @@ export const getProducts = async (req, res) => {
             sellerProduct?.sellerId || null,
 
           sellerPrice:
-            sellerProduct?.price || product.price,
+            sellerProduct?.price ||
+            product.price,
 
           sellerStock:
-            sellerProduct?.stock || product.stock
+            sellerProduct?.stock ||
+            product.stock
 
         };
 
@@ -560,7 +580,9 @@ export const getProducts = async (req, res) => {
       TOTAL
     */
     const total =
-      await Product.countDocuments();
+      await Product.countDocuments(
+        filter
+      );
 
     /*
       RESPONSE
@@ -590,6 +612,7 @@ export const getProducts = async (req, res) => {
   }
 
 };
+
 // ✅ GET PRODUCTS BY CATEGORY
 export const getProductsByCategory = async (req, res) => {
   try {
