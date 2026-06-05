@@ -6,7 +6,7 @@ import reviewRoutes from "./routes/review.routes.js";
 import adminWalletRoutes from "./routes/adminWallet.routes.js";
 import withdrawRoutes from "./routes/withdraw.routes.js";
 import adminWithdrawRoutes from "./routes/admin.withdraw.routes.js";
-
+import messageRoutes from "./routes/messageRoutes.js";
 
 
 
@@ -100,6 +100,7 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/user",userRoutes);
 app.use("/api/seller",sellerRoutes);
 app.use("/uploads", express.static("uploads"));
+app.use("/api/messages", messageRoutes);
 
 app.use("/api/admin", adminRoutes);  
 app.use("/api/adminn", virtualBuyerRoutes);  
