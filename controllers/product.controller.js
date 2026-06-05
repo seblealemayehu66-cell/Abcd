@@ -484,50 +484,107 @@ export const getSingleProduct = async (req, res) => {
 
 // ✅ GET ALL PRODUCTS
 // ✅ GET ALL PRODUCTS WITH PAGINATION
+// ✅ GET ALL PRODUCTS
 export const getProducts = async (req, res) => {
+
   try {
 
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 35;
+    const page =
+      Number(req.query.page) || 1;
 
-    const skip = (page - 1) * limit;
+    const limit =
+      Number(req.query.limit) || 35;
 
-    const { category, subcategory } = req.query;
+    const skip =
+      (page - 1) * limit;
 
-    let filter = {};
+    /*
+      GET SELLER PRODUCTS
+    */
+    const sellerProducts =
+      await SellerProduct.find()
 
-    if (category) {
-      filter.category = category;
-    }
+        .populate({
+          path: "sellerId",
+          select: "shop"
+        })
 
-    if (subcategory) {
-      filter.subcategory = subcategory;
-    }
+        .populate({
+          path: "productId",
+          populate: {
+            path: "category"
+          }
+        })
 
-    // ONLY FETCH SMALL AMOUNT
-const products = await Product.find(filter)
+        .skip(skip)
 
-  .populate("category")
+        .limit(limit)
 
-  .populate({
-    path: "seller",
-    select: "shop"
-  })
+        .lean();
 
-  .skip(skip)
+    /*
+      FORMAT PRODUCTS
+    */
+    const products =
+      sellerProducts.map((item) => ({
 
-  .limit(limit)
+        _id: item.productId?._id,
 
-  .lean();
+        name:
+          item.productId?.name,
 
-    // TOTAL COUNT
-    const total = await Product.countDocuments(filter);
+        images:
+          item.productId?.images,
 
+        description:
+          item.productId?.description,
+
+        category:
+          item.productId?.category,
+
+        subcategory:
+          item.productId?.subcategory,
+
+        sizes:
+          item.productId?.sizes,
+
+        colors:
+          item.productId?.colors,
+
+        isPublished:
+          item.productId?.isPublished,
+
+        seller:
+          item.sellerId,
+
+        price:
+          item.price,
+
+        stock:
+          item.stock
+
+      }));
+
+    /*
+      TOTAL
+    */
+    const total =
+      await SellerProduct.countDocuments();
+
+    /*
+      RESPONSE
+    */
     res.json({
+
       products,
+
       total,
+
       page,
-      totalPages: Math.ceil(total / limit)
+
+      totalPages:
+        Math.ceil(total / limit)
+
     });
 
   } catch (error) {
@@ -539,6 +596,7 @@ const products = await Product.find(filter)
     });
 
   }
+
 };
 // ✅ GET PRODUCTS BY CATEGORY
 export const getProductsByCategory = async (req, res) => {
