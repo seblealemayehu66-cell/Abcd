@@ -8,6 +8,7 @@ import {
   publishCart ,
   getSellerProducts,
   getSingleProduct,
+  getProductsByShopName
 } from "../controllers/product.controller.js";
 
 import upload from "../middleware/upload.js";
@@ -23,6 +24,12 @@ const excelUpload = multer({
 router.post("/", upload.array("images", 5), addProduct); 
 
 router.get("/", getProducts);
+
+
+// 🔥 SHOP PAGE API
+router.get("/shop/:shopName", getProductsByShopName);
+
+
   
 
 router.get("/category/:categoryId", getProductsByCategory);
