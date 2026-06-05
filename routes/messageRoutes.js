@@ -7,24 +7,33 @@ const router = express.Router();
 // SEND MESSAGE
 router.post("/send", async (req, res) => {
   try {
+    console.log(req.body);
 
     const { sender, receiver, text } = req.body;
 
-    const newMessage = await Message.create({
+    // VALIDATION
+    if (!sender || !receiver || !text) {
+      return res.status(400).json({
+        message: "All fields required",
+      });
+    }
+
+    // CREATE MESSAGE
+    const newMessage = new Message({
       sender,
       receiver,
       text,
     });
 
-    const populatedMessage = await Message.findById(
-      newMessage._id
-    )
-      .populate("sender", "name image")
-      .populate("receiver", "name image");
+    await newMessage.save();
 
-    res.json(populatedMessage);
+    res.status(201).json(newMessage);
 
   } catch (err) {
+
+    console.log("MESSAGE ERROR:");
+    console.log(err);
+
     res.status(500).json({
       message: err.message,
     });
