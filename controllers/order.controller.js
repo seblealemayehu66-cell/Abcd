@@ -4,233 +4,362 @@ import Product from "../models/Product.js";
 import SellerProduct from "../models/SellerProduct.js";
 
 /* =========================
-   ✅ PLACE ORDER (ADMIN)
+   ✅ PLACE ORDER
 ========================= */
 export const placeOrder = async (req, res) => {
   try {
-    const { buyerId, customerId, productId, quantity } = req.body;
-
-    const qty = quantity || 1;
-
-    // 🔥 Validate buyer
-    const buyer = await User.findById(buyerId);
-    if (!buyer || !buyer.isVirtualBuyer) {
-      return res.status(400).json({ message: "Invalid virtual buyer" });
-    }
-
-    // 🔥 Validate customer
-    const customer = await User.findById(customerId);
-    if (!customer) {
-      return res.status(400).json({ message: "Customer not found" });
-    }
-
-    // 🔥 Validate product
-    const product = await Product.findById(productId);
-    if (!product) {
-      return res.status(400).json({ message: "Product not found" });
-    }
-
-    if (product.stock < qty) {
-      return res.status(400).json({ message: "Not enough stock" });
-    }
-
-    // 💥 IMPORTANT FIX: find seller from SellerProduct table
-    const sellerProduct = await SellerProduct.findOne({
-      productId: productId,
-    });
-
-    if (!sellerProduct) {
-      return res.status(400).json({
-        message: "No seller assigned to this product",
-      });
-    }
-
-    // 💰 pricing logic
-    const sellPrice = sellerProduct.price * qty;
-    const buyPrice = sellerProduct.price * 0.8 * qty;
-
-    // 📦 CREATE ORDER (CRITICAL FIX HERE)
-    const order = new Order({
+    const {
       buyerId,
       customerId,
       productId,
-      sellerId: sellerProduct.sellerId, // 🔥 THIS FIXES YOUR ISSUE
-      price: sellPrice,
-      buyPrice: buyPrice,
+      quantity,
+      shippingAddress,
+      paymentMethod,
+    } = req.body;
+
+    const qty = quantity || 1;
+
+    /* =========================
+       ✅ VALIDATE BUYER
+    ========================= */
+
+    const buyer = await User.findById(buyerId);
+
+    if (!buyer || !buyer.isVirtualBuyer) {
+      return res.status(400).json({
+        message: "Invalid virtual buyer",
+      });
+    }
+
+    /* =========================
+       ✅ VALIDATE CUSTOMER
+    ========================= */
+
+    const customer = await User.findById(customerId);
+
+    if (!customer) {
+      return res.status(400).json({
+        message: "Customer not found",
+      });
+    }
+
+    /* =========================
+       ✅ VALIDATE PRODUCT
+    ========================= */
+
+    const product = await Product.findById(productId);
+
+    if (!product) {
+      return res.status(404).json({
+        message: "Product not found",
+      });
+    }
+
+    /* =========================
+       ✅ FIND SELLER PRODUCT
+    ========================= */
+
+    const sellerProduct = await SellerProduct.findOne({
+      productId: productId,
+    }).populate("sellerId");
+
+    if (!sellerProduct) {
+      return res.status(400).json({
+        message: "Seller product not found",
+      });
+    }
+
+    /* =========================
+       ✅ STOCK CHECK
+    ========================= */
+
+    if (sellerProduct.stock < qty) {
+      return res.status(400).json({
+        message: "Not enough stock",
+      });
+    }
+
+    /* =========================
+       ✅ PRICE LOGIC
+    ========================= */
+
+    const sellPrice = sellerProduct.price * qty;
+
+    // seller buying cost
+    const buyPrice = sellerProduct.price * 0.8 * qty;
+
+    /* =========================
+       ✅ CREATE ORDER
+    ========================= */
+
+    const order = await Order.create({
+      buyerId,
+      customerId,
+      productId,
+
+      // 🔥 IMPORTANT FIX
+      sellerId: sellerProduct.sellerId._id,
+
       quantity: qty,
+
+      price: sellPrice,
+      buyPrice,
+
       status: "pending",
-      isPaid: false,
-      paymentMethod: "wallet",
+
       frozenAmount: 0,
+
+      isPaid: false,
+
+      paymentMethod: paymentMethod || "wallet",
+
+      shippingAddress,
     });
 
-    await order.save();
-
-    res.status(201).json({
+    return res.status(201).json({
+      success: true,
       message: "Order placed successfully",
       order,
     });
 
   } catch (err) {
-    console.error("Place Order Error:", err);
-    res.status(500).json({ message: "Server error" });
+    console.error("PLACE ORDER ERROR:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: err.message,
+    });
   }
 };
+
 /* =========================
    ✅ CUSTOMER ORDERS
 ========================= */
+
 export const getCustomerOrders = async (req, res) => {
   try {
-    const orders = await Order.find({ customerId: req.user.id })
+    const orders = await Order.find({
+      customerId: req.user._id,
+    })
       .populate("productId")
+      .populate("sellerId", "name email")
       .populate("buyerId", "name email")
-      .populate("customerId", "name email");
+      .sort({ createdAt: -1 });
 
-    res.json(orders);
+    return res.json(orders);
+
   } catch (err) {
-    console.error("Customer Orders Error:", err);
-    res.status(500).json({ message: "Server error" });
+    console.error("CUSTOMER ORDERS ERROR:", err);
+
+    return res.status(500).json({
+      message: "Server error",
+    });
   }
 };
 
 /* =========================
-   ✅ SELLER ORDERS (FIXED 🔥)
+   ✅ SELLER ORDERS
 ========================= */
+
 export const getSellerOrders = async (req, res) => {
   try {
     const seller = req.seller;
 
     if (!seller) {
-      return res.status(401).json({ message: "Seller not authenticated" });
+      return res.status(401).json({
+        message: "Seller not authenticated",
+      });
     }
 
-    // ✅ SIMPLE + STRONG LOGIC 🔥
     const orders = await Order.find({
       sellerId: seller._id,
     })
       .populate("productId")
       .populate("customerId", "name email")
-      .populate("buyerId", "name email country phone");
+      .populate("buyerId", "name email country phone")
+      .sort({ createdAt: -1 });
 
-    res.json(orders);
+    return res.json(orders);
+
   } catch (err) {
-    console.error("Seller Orders Error:", err);
-    res.status(500).json({ message: "Server error" });
+    console.error("SELLER ORDERS ERROR:", err);
+
+    return res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
+
+/* =========================
+   ✅ PURCHASE HISTORY
+========================= */
+
+export const getPurchaseHistory = async (req, res) => {
+  try {
+    const orders = await Order.find({
+      customerId: req.user._id,
+    })
+      .populate("productId")
+      .populate("sellerId", "name")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json(orders);
+
+  } catch (err) {
+    console.error("PURCHASE HISTORY ERROR:", err);
+
+    return res.status(500).json({
+      message: "Server error fetching purchase history",
+    });
   }
 };
 
 /* =========================
    ✅ GET INVOICE
 ========================= */
+
 export const getInvoice = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
       .populate("productId")
-      .populate("customerId", "name email");
+      .populate("customerId", "name email")
+      .populate("sellerId", "name email");
 
-    if (!order)
-      return res.status(404).json({ message: "Order not found" });
+    if (!order) {
+      return res.status(404).json({
+        message: "Order not found",
+      });
+    }
 
-    res.json({
+    return res.json({
       orderId: order._id,
-      product: order.productId?.name || "Product removed",
-      image: order.productId?.image || "",
-      customer: order.customerId || {},
-      sellPrice: order.price || 0,
-      buyPrice: order.buyPrice || 0,
-      profit: (order.price || 0) - (order.buyPrice || 0),
+
+      product: order.productId?.name || "Deleted Product",
+
+      image: order.productId?.images?.[0] || "",
+
+      customer: order.customerId,
+
+      seller: order.sellerId,
+
+      quantity: order.quantity,
+
+      sellPrice: order.price,
+
+      buyPrice: order.buyPrice,
+
+      profit: order.price - order.buyPrice,
+
+      paymentMethod: order.paymentMethod,
+
+      status: order.status,
+
+      shippingAddress: order.shippingAddress,
+
+      createdAt: order.createdAt,
     });
+
   } catch (err) {
-    console.error("Get Invoice Error:", err);
-    res.status(500).json({ message: "Server error" });
+    console.error("GET INVOICE ERROR:", err);
+
+    return res.status(500).json({
+      message: "Server error",
+    });
   }
 };
 
-
-// Get all orders for a logged-in user
-export const getPurchaseHistory = async (req, res) => {
-  try {
-    const userId = req.user._id; // assume you have auth middleware that sets req.user
-
-    // Fetch orders and populate product info
-    const orders = await Order.find({ customerId: userId })
-      .populate("productId") // get product details
-      .sort({ createdAt: -1 }); // newest first
-
-    res.status(200).json(orders);
-  } catch (err) {
-    console.error("Purchase History Error:", err);
-    res.status(500).json({ message: "Server error fetching purchase history" });
-  }
-};
 /* =========================
-   🔥 PICK ORDER (FIXED)
+   ✅ PICK ORDER
 ========================= */
+
 export const pickOrder = async (req, res) => {
   try {
     const orderId = req.params.id;
+
+    const seller = req.seller;
+
+    if (!seller) {
+      return res.status(401).json({
+        message: "Seller not authenticated",
+      });
+    }
+
+    /* =========================
+       ✅ FIND ORDER
+    ========================= */
 
     const order = await Order.findById(orderId)
       .populate("productId");
 
     if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    // ❌ prevent double pick
-    if (order.status !== "pending") {
-      return res.status(400).json({ message: "Order already picked" });
-    }
-
-    const seller = req.seller;
-
-    if (!seller) {
-      return res.status(401).json({ message: "Seller not authenticated" });
-    }
-
-    // safety check
-    if (!order.sellerId) {
-      return res.status(400).json({
-        message: "Order has no seller assigned",
+      return res.status(404).json({
+        message: "Order not found",
       });
     }
 
-    if (order.sellerId.toString() !== seller._id.toString()) {
-      return res.status(403).json({ message: "This is not your order" });
+    /* =========================
+       ✅ SECURITY CHECK
+    ========================= */
+
+    if (!order.sellerId) {
+      return res.status(400).json({
+        message: "No seller assigned",
+      });
     }
 
-    // get seller product
+    if (
+      order.sellerId.toString() !==
+      seller._id.toString()
+    ) {
+      return res.status(403).json({
+        message: "This order is not yours",
+      });
+    }
+
+    /* =========================
+       ✅ STATUS CHECK
+    ========================= */
+
+    if (order.status !== "pending") {
+      return res.status(400).json({
+        message: "Order already picked",
+      });
+    }
+
+    /* =========================
+       ✅ FIND SELLER PRODUCT
+    ========================= */
+
     const sellerProduct = await SellerProduct.findOne({
       sellerId: seller._id,
       productId: order.productId._id,
     });
 
     if (!sellerProduct) {
-      return res.status(404).json({ message: "Seller product not found" });
+      return res.status(404).json({
+        message: "Seller product not found",
+      });
     }
 
     const quantity = order.quantity || 1;
 
-    // stock check
+    /* =========================
+       ✅ STOCK CHECK
+    ========================= */
+
     if (sellerProduct.stock < quantity) {
-      return res.status(400).json({ message: "Not enough seller stock" });
-    }
-
-    const product = await Product.findById(order.productId._id);
-
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-
-    if (product.stock < quantity) {
-      return res.status(400).json({ message: "Not enough product stock" });
+      return res.status(400).json({
+        message: "Not enough seller stock",
+      });
     }
 
     /* =========================
-       💰 WALLET FIX (USDT VERSION)
+       ✅ WALLET CHECK
     ========================= */
 
-    const usdtBalance = seller?.wallet?.balances?.USDT || 0;
+    const usdtBalance =
+      seller?.wallet?.balances?.USDT || 0;
 
     if (usdtBalance < order.buyPrice) {
       return res.status(400).json({
@@ -239,50 +368,79 @@ export const pickOrder = async (req, res) => {
     }
 
     /* =========================
-       🔥 APPLY CHANGES
+       ✅ DEDUCT STOCK
     ========================= */
 
-    // seller stock
     sellerProduct.stock -= quantity;
-    if (sellerProduct.stock < 0) sellerProduct.stock = 0;
+
+    if (sellerProduct.stock < 0) {
+      sellerProduct.stock = 0;
+    }
+
     await sellerProduct.save();
 
-    // product stock
-    product.stock -= quantity;
-    if (product.stock < 0) product.stock = 0;
-    await product.save();
+    /* =========================
+       ✅ DEDUCT PRODUCT STOCK
+    ========================= */
 
-    // 💰 deduct USDT
+    const product = await Product.findById(
+      order.productId._id
+    );
+
+    if (product) {
+      product.stock -= quantity;
+
+      if (product.stock < 0) {
+        product.stock = 0;
+      }
+
+      await product.save();
+    }
+
+    /* =========================
+       ✅ DEDUCT SELLER WALLET
+    ========================= */
+
     seller.wallet.balances.USDT -= order.buyPrice;
 
-    // ensure transactions array exists
-    seller.wallet.transactions = seller.wallet.transactions || [];
+    if (!seller.wallet.transactions) {
+      seller.wallet.transactions = [];
+    }
 
     seller.wallet.transactions.push({
       type: "debit",
       currency: "USDT",
       amount: order.buyPrice,
-      note: `Order pickup - ${product.name}`,
+      note: `Picked order for ${product?.name}`,
     });
 
     await seller.save();
 
-    // update order
+    /* =========================
+       ✅ UPDATE ORDER
+    ========================= */
+
     order.status = "processing";
+
     order.frozenAmount = order.price;
-    order.deliveryDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+
+    order.deliveryDate = new Date(
+      Date.now() + 3 * 24 * 60 * 60 * 1000
+    );
 
     await order.save();
 
     return res.json({
+      success: true,
       message: "Order picked successfully",
       order,
     });
 
   } catch (err) {
-    console.error("Pick Order Error:", err);
+    console.error("PICK ORDER ERROR:", err);
 
     return res.status(500).json({
+      success: false,
       message: "Server error while picking order",
       error: err.message,
     });
