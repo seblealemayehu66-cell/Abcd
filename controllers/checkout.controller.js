@@ -2,11 +2,16 @@ import Cart from "../models/Cart.js";
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
 import User from "../models/User.js";
+import SellerProduct from "../models/SellerProduct.js";
 
-// Save shipping info in Cart temporarily
+/* =========================
+   ✅ SAVE SHIPPING
+========================= */
+
 export const saveShipping = async (req, res) => {
   try {
     const userId = req.user.id;
+
     const {
       fullName,
       phone,
@@ -18,17 +23,37 @@ export const saveShipping = async (req, res) => {
       postalCode,
     } = req.body;
 
-    if (!fullName || !phone || !addressLine1 || !city || !country) {
+    /* =========================
+       ✅ VALIDATION
+    ========================= */
+
+    if (
+      !fullName ||
+      !phone ||
+      !addressLine1 ||
+      !city ||
+      !country
+    ) {
       return res.status(400).json({
         message: "Please fill required shipping fields",
       });
     }
 
+    /* =========================
+       ✅ FIND CART
+    ========================= */
+
     const cart = await Cart.findOne({ userId });
 
     if (!cart || !cart.items.length) {
-      return res.status(400).json({ message: "Cart is empty" });
+      return res.status(400).json({
+        message: "Cart is empty",
+      });
     }
+
+    /* =========================
+       ✅ SAVE SHIPPING
+    ========================= */
 
     cart.shippingAddress = {
       fullName,
@@ -43,19 +68,26 @@ export const saveShipping = async (req, res) => {
 
     await cart.save();
 
-    res.json({
+    return res.json({
+      success: true,
       message: "Shipping info saved",
       shippingAddress: cart.shippingAddress,
     });
+
   } catch (err) {
-    console.error("Shipping Error:", err);
-    res.status(500).json({ message: "Server error" });
+    console.error("SAVE SHIPPING ERROR:", err);
+
+    return res.status(500).json({
+      message: "Server error",
+      error: err.message,
+    });
   }
 };
 
-// =========================
-// PAYMENT CONTROLLER (FIXED)
-// =========================
+/* =========================
+   ✅ PROCESS PAYMENT
+========================= */
+
 export const processPayment = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -64,22 +96,52 @@ export const processPayment = async (req, res) => {
 
     paymentMethod = paymentMethod?.replace("-", "_");
 
-    const cart = await Cart.findOne({ userId }).populate(
-      "items.productId"
-    );
+    /* =========================
+       ✅ GET USER CART
+    ========================= */
+
+    const cart = await Cart.findOne({ userId })
+      .populate("items.productId")
+      .populate("items.sellerId")
+      .populate("items.sellerProductId");
 
     if (!cart || !cart.items.length) {
-      return res.status(400).json({ message: "Cart is empty" });
+      return res.status(400).json({
+        message: "Cart is empty",
+      });
     }
 
+    /* =========================
+       ✅ SHIPPING CHECK
+    ========================= */
+
     if (!cart.shippingAddress) {
-      return res.status(400).json({ message: "Shipping not set" });
+      return res.status(400).json({
+        message: "Shipping address missing",
+      });
     }
+
+    /* =========================
+       ✅ FIND USER
+    ========================= */
 
     const user = await User.findById(userId);
 
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    /* =========================
+       ✅ WALLET INIT
+    ========================= */
+
     if (!user.wallet) {
-      user.wallet = { balances: {}, transactions: [] };
+      user.wallet = {
+        balances: {},
+        transactions: [],
+      };
     }
 
     if (!user.wallet.balances) {
@@ -90,89 +152,115 @@ export const processPayment = async (req, res) => {
       user.wallet.transactions = [];
     }
 
-    // =========================
-    // TOTAL AMOUNT CALCULATION
-    // =========================
+    /* =========================
+       ✅ TOTAL CALCULATION
+    ========================= */
+
     let totalAmount = 0;
 
     cart.items.forEach((item) => {
-      totalAmount += item.productId.price * item.quantity;
+      totalAmount += item.price * item.quantity;
     });
 
-    // =========================
-    // SAFE DEDUCT FUNCTION
-    // =========================
+    /* =========================
+       ✅ SAFE DEDUCT FUNCTION
+    ========================= */
+
     const deductCoin = (coin) => {
-      const balance = user.wallet.balances[coin] || 0;
+      const balance =
+        user.wallet.balances[coin] || 0;
 
       if (balance < totalAmount) {
         return false;
       }
 
-      user.wallet.balances[coin] = balance - totalAmount;
+      user.wallet.balances[coin] =
+        balance - totalAmount;
 
       user.wallet.transactions.push({
-        coin,
         type: "debit",
+        currency: coin,
         amount: totalAmount,
-        note: `Order Payment (${coin})`,
+        note: `Order payment (${coin})`,
       });
 
       return true;
     };
 
-    // =========================
-    // PAYMENT LOGIC
-    // =========================
+    /* =========================
+       ✅ PAYMENT LOGIC
+    ========================= */
 
     if (paymentMethod === "wallet") {
-      if (!deductCoin("USDT")) {
+      const success = deductCoin("USDT");
+
+      if (!success) {
         return res.status(400).json({
           message: "Insufficient USDT balance",
         });
       }
-    } 
+    }
+
     else if (paymentMethod === "btc") {
-      if (!deductCoin("BTC")) {
+      const success = deductCoin("BTC");
+
+      if (!success) {
         return res.status(400).json({
           message: "Insufficient BTC balance",
         });
       }
-    } 
+    }
+
     else if (paymentMethod === "eth") {
-      if (!deductCoin("ETH")) {
+      const success = deductCoin("ETH");
+
+      if (!success) {
         return res.status(400).json({
           message: "Insufficient ETH balance",
         });
       }
-    } 
+    }
+
     else if (paymentMethod === "sol") {
-      if (!deductCoin("SOL")) {
+      const success = deductCoin("SOL");
+
+      if (!success) {
         return res.status(400).json({
           message: "Insufficient SOL balance",
         });
       }
-    } 
+    }
+
     else if (
       paymentMethod === "usdt_trc20" ||
       paymentMethod === "usdt_erc20"
     ) {
-      // simulate success (no deduction)
-    } 
+      // simulated external payment
+    }
+
     else {
       return res.status(400).json({
         message: "Invalid payment method",
       });
     }
 
-    // =========================
-    // CREATE ORDERS
-    // =========================
+    /* =========================
+       ✅ CREATE ORDERS
+    ========================= */
+
     const orders = [];
+
     const shipping = cart.shippingAddress;
 
-    for (let item of cart.items) {
-      const product = await Product.findById(item.productId._id);
+    for (const item of cart.items) {
+
+      /* =========================
+         ✅ FIND PRODUCT
+      ========================= */
+
+      const product = await Product.findById(
+        item.productId._id
+      );
 
       if (!product) {
         return res.status(400).json({
@@ -180,50 +268,124 @@ export const processPayment = async (req, res) => {
         });
       }
 
-      if (product.stock < item.quantity) {
+      /* =========================
+         ✅ FIND SELLER PRODUCT
+      ========================= */
+
+      const sellerProduct =
+        await SellerProduct.findById(
+          item.sellerProductId
+        );
+
+      if (!sellerProduct) {
+        return res.status(400).json({
+          message: "Seller product not found",
+        });
+      }
+
+      /* =========================
+         ✅ STOCK CHECK
+      ========================= */
+
+      if (sellerProduct.stock < item.quantity) {
         return res.status(400).json({
           message: `Not enough stock for ${product.name}`,
         });
       }
 
+      /* =========================
+         ✅ UPDATE STOCK
+      ========================= */
+
+      sellerProduct.stock -= item.quantity;
+
+      if (sellerProduct.stock < 0) {
+        sellerProduct.stock = 0;
+      }
+
+      await sellerProduct.save();
+
+      /* =========================
+         ✅ UPDATE MAIN PRODUCT STOCK
+      ========================= */
+
       product.stock -= item.quantity;
+
+      if (product.stock < 0) {
+        product.stock = 0;
+      }
+
       await product.save();
 
-      const order = new Order({
+      /* =========================
+         ✅ CREATE ORDER
+      ========================= */
+
+      const order = await Order.create({
         buyerId: userId,
+
         customerId: userId,
+
         productId: product._id,
-        sellerId: product.sellerId || null,
+
+        // 🔥 IMPORTANT FIX
+        sellerId: item.sellerId,
+
         quantity: item.quantity,
-        price: product.price * item.quantity,
-        buyPrice: product.price * 0.8 * item.quantity,
-        status: "completed",
+
+        price: item.price * item.quantity,
+
+        buyPrice:
+          item.price * 0.8 * item.quantity,
+
+        frozenAmount: 0,
+
+        status: "pending",
+
         isPaid: true,
-        shippingAddress: shipping,
+
         paymentMethod,
+
+        shippingAddress: shipping,
       });
 
-      await order.save();
       orders.push(order);
     }
 
-    // =========================
-    // FINAL SAVE (IMPORTANT)
-    // =========================
+    /* =========================
+       ✅ SAVE USER WALLET
+    ========================= */
+
     user.markModified("wallet");
+
     await user.save();
 
+    /* =========================
+       ✅ CLEAR CART
+    ========================= */
+
     cart.items = [];
+
     cart.shippingAddress = null;
+
     await cart.save();
 
-    res.json({
+    /* =========================
+       ✅ RESPONSE
+    ========================= */
+
+    return res.json({
+      success: true,
       message: "Payment successful",
+      totalAmount,
       orders,
     });
+
   } catch (err) {
-    console.error("Payment Error:", err);
-    res.status(500).json({
+    console.error("PAYMENT ERROR:", err);
+
+    return res.status(500).json({
+      success: false,
       message: "Server error",
       error: err.message,
     });
