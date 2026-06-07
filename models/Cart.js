@@ -21,7 +21,7 @@ const cartSchema = new mongoose.Schema(
        sellerId: {
   type: mongoose.Schema.Types.ObjectId,
   ref: "User",
-  default: null,
+  required: true,
 },
 
         // OPTIONAL
@@ -29,7 +29,7 @@ const cartSchema = new mongoose.Schema(
         sellerProductId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "SellerProduct",
-          default: null,
+           required: true,
         },
 
         quantity: {
