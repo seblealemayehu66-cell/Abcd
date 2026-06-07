@@ -19,7 +19,7 @@ export const addToCart = async (req, res) => {
     } = req.body;
 
     /* =========================
-       ✅ CHECK PRODUCT
+       ✅ VALIDATE PRODUCT
     ========================= */
 
     const product = await Product.findById(productId);
@@ -31,31 +31,35 @@ export const addToCart = async (req, res) => {
     }
 
     /* =========================
-       ✅ OPTIONAL SELLER PRODUCT
+       ✅ SELLER PRODUCT IS REQUIRED (SOURCE OF TRUTH)
     ========================= */
 
-    let sellerProduct = null;
+    if (!sellerProductId) {
+      return res.status(400).json({
+        message: "sellerProductId is required",
+      });
+    }
 
-    if (sellerProductId) {
-      sellerProduct = await SellerProduct.findById(
-        sellerProductId
-      );
+    const sellerProduct = await SellerProduct.findById(sellerProductId);
 
-      if (!sellerProduct) {
-        return res.status(404).json({
-          message: "Seller product not found",
-        });
-      }
-
-      if (sellerProduct.stock < quantity) {
-        return res.status(400).json({
-          message: "Not enough stock",
-        });
-      }
+    if (!sellerProduct) {
+      return res.status(404).json({
+        message: "Seller product not found",
+      });
     }
 
     /* =========================
-       ✅ FIND CART
+       ✅ STOCK CHECK
+    ========================= */
+
+    if (sellerProduct.stock < quantity) {
+      return res.status(400).json({
+        message: "Not enough stock",
+      });
+    }
+
+    /* =========================
+       ✅ FIND OR CREATE CART
     ========================= */
 
     let cart = await Cart.findOne({ userId });
@@ -76,15 +80,11 @@ export const addToCart = async (req, res) => {
         item.productId.toString() === productId &&
         item.size === size &&
         item.color === color &&
-        (
-          sellerProductId
-            ? item.sellerProductId?.toString() === sellerProductId
-            : true
-        )
+        item.sellerProductId?.toString() === sellerProductId
     );
 
     /* =========================
-       ✅ UPDATE EXISTING
+       ✅ UPDATE EXISTING ITEM
     ========================= */
 
     if (existingItem) {
@@ -99,22 +99,17 @@ export const addToCart = async (req, res) => {
       cart.items.push({
         productId,
 
-        sellerId:
-          sellerProduct?.sellerId ||
-          product.seller,
+        sellerId: sellerProduct.sellerId, // ✅ ALWAYS FROM DB
 
-        sellerProductId:
-          sellerProduct?._id || null,
+        sellerProductId: sellerProduct._id,
 
-        quantity,
+        quantity: Number(quantity),
 
         size,
 
         color,
 
-        price:
-          sellerProduct?.price ||
-          product.price,
+        price: sellerProduct.price,
       });
     }
 
@@ -183,7 +178,6 @@ export const getUserCart = async (req, res) => {
 export const removeCartItem = async (req, res) => {
   try {
     const userId = req.user.id;
-
     const { id } = req.params;
 
     const cart = await Cart.findOne({ userId });
