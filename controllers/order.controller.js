@@ -97,31 +97,44 @@ export const placeOrder = async (req, res) => {
        ✅ CREATE ORDER
     ========================= */
 
-    const order = await Order.create({
-      buyerId,
-      customerId,
-      productId,
+   /* =========================
+   ✅ CREATE ORDER
+========================= */
 
-      sellerId: finalSellerId,
+const order = await Order.create({
 
-      sellerProductId: finalSellerProductId,
+  buyerId: userId,
 
-      quantity: qty,
+  customerId: userId,
 
-      price: sellPrice,
+  productId: product._id,
 
-      buyPrice,
+  // ✅ IMPORTANT FIX
+  sellerId: finalSellerId,
 
-      status: "pending",
+  // ✅ IMPORTANT FIX
+  sellerProductId:
+    item.sellerProductId?._id ||
+    item.sellerProductId ||
+    null,
 
-      frozenAmount: 0,
+  quantity: item.quantity,
 
-      isPaid: false,
+  price: finalPrice * item.quantity,
 
-      paymentMethod: paymentMethod || "wallet",
+  buyPrice:
+    finalPrice * 0.8 * item.quantity,
 
-      shippingAddress,
-    });
+  frozenAmount: 0,
+
+  status: "pending",
+
+  isPaid: true,
+
+  paymentMethod,
+
+  shippingAddress: shipping,
+});
 
     return res.status(201).json({
       success: true,
