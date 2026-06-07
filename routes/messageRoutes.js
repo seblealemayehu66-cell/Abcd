@@ -1,61 +1,78 @@
 import express from "express";
 import Message from "../models/Message.js";
+import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-
-// SEND MESSAGE
-router.post("/send", async (req, res) => {
+/* =========================
+   ✅ SEND MESSAGE
+========================= */
+router.post("/send", authMiddleware, async (req, res) => {
   try {
-    console.log(req.body);
 
-    const { sender, receiver, text } = req.body;
+    const sender = req.user.id;
 
-    // VALIDATION
-    if (!sender || !receiver || !text) {
+    const { receiver, text } = req.body;
+
+    /* =========================
+       VALIDATION
+    ========================= */
+
+    if (!receiver || !text) {
       return res.status(400).json({
-        message: "All fields required",
+        message: "Receiver and text are required",
       });
     }
 
-    // CREATE MESSAGE
-    const newMessage = new Message({
+    /* =========================
+       CREATE MESSAGE
+    ========================= */
+
+    const newMessage = await Message.create({
       sender,
       receiver,
       text,
     });
 
-    await newMessage.save();
+    /* =========================
+       POPULATE
+    ========================= */
 
-    res.status(201).json(newMessage);
+    const populatedMessage = await Message.findById(newMessage._id)
+      .populate("sender", "name image")
+      .populate("receiver", "name image");
+
+    return res.status(201).json(populatedMessage);
 
   } catch (err) {
 
-    console.log("MESSAGE ERROR:");
-    console.log(err);
+    console.log("SEND MESSAGE ERROR:", err);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: err.message,
     });
   }
 });
 
-
-// GET CHAT MESSAGES
-router.get("/:user1/:user2", async (req, res) => {
+/* =========================
+   ✅ GET CHAT
+========================= */
+router.get("/:userId", authMiddleware, async (req, res) => {
   try {
 
-    const { user1, user2 } = req.params;
+    const currentUser = req.user.id;
+
+    const otherUser = req.params.userId;
 
     const messages = await Message.find({
       $or: [
         {
-          sender: user1,
-          receiver: user2,
+          sender: currentUser,
+          receiver: otherUser,
         },
         {
-          sender: user2,
-          receiver: user1,
+          sender: otherUser,
+          receiver: currentUser,
         },
       ],
     })
@@ -63,10 +80,66 @@ router.get("/:user1/:user2", async (req, res) => {
       .populate("receiver", "name image")
       .sort({ createdAt: 1 });
 
-    res.json(messages);
+    return res.json(messages);
 
   } catch (err) {
-    res.status(500).json({
+
+    console.log("GET CHAT ERROR:", err);
+
+    return res.status(500).json({
+      message: err.message,
+    });
+  }
+});
+
+/* =========================
+   ✅ GET USER CONVERSATIONS
+========================= */
+router.get("/", authMiddleware, async (req, res) => {
+  try {
+
+    const currentUser = req.user.id;
+
+    const messages = await Message.find({
+      $or: [
+        { sender: currentUser },
+        { receiver: currentUser },
+      ],
+    })
+      .populate("sender", "name image")
+      .populate("receiver", "name image")
+      .sort({ updatedAt: -1 });
+
+    /* =========================
+       UNIQUE CONVERSATIONS
+    ========================= */
+
+    const conversationsMap = new Map();
+
+    messages.forEach((msg) => {
+
+      const otherUser =
+        msg.sender._id.toString() === currentUser
+          ? msg.receiver
+          : msg.sender;
+
+      if (!conversationsMap.has(otherUser._id.toString())) {
+        conversationsMap.set(otherUser._id.toString(), {
+          user: otherUser,
+          lastMessage: msg,
+        });
+      }
+    });
+
+    return res.json(
+      Array.from(conversationsMap.values())
+    );
+
+  } catch (err) {
+
+    console.log("GET CONVERSATIONS ERROR:", err);
+
+    return res.status(500).json({
       message: err.message,
     });
   }
