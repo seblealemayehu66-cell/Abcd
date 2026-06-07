@@ -10,25 +10,26 @@ const cartSchema = new mongoose.Schema(
 
     items: [
       {
-        // 🔥 ORIGINAL PRODUCT
+        // ORIGINAL PRODUCT
         productId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Product",
           required: true,
         },
 
-        // 🔥 IMPORTANT FIX
+        // SELLER
         sellerId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "User",
           required: true,
         },
 
-        // 🔥 IMPORTANT FIX
+        // OPTIONAL
+        // only exists if product came from SellerProduct
         sellerProductId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "SellerProduct",
-          required: true,
+          default: null,
         },
 
         quantity: {
@@ -36,11 +37,17 @@ const cartSchema = new mongoose.Schema(
           default: 1,
         },
 
-        size: String,
+        size: {
+          type: String,
+          default: "",
+        },
 
-        color: String,
+        color: {
+          type: String,
+          default: "",
+        },
 
-        // 🔥 SAVE PRICE SNAPSHOT
+        // PRICE SNAPSHOT
         price: {
           type: Number,
           default: 0,
