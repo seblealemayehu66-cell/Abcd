@@ -1,3 +1,4 @@
+
 import Order from "../models/Order.js";
 import User from "../models/User.js";
 import Product from "../models/Product.js";
@@ -8,6 +9,7 @@ import SellerProduct from "../models/SellerProduct.js";
 ========================= */
 export const placeOrder = async (req, res) => {
   try {
+
     const {
       buyerId,
       customerId,
@@ -59,34 +61,37 @@ export const placeOrder = async (req, res) => {
        ✅ FIND SELLER PRODUCT
     ========================= */
 
-    const sellerProduct = await SellerProduct.findOne({
+    let sellerProduct = await SellerProduct.findOne({
       productId: productId,
     }).populate("sellerId");
 
-    if (!sellerProduct) {
-      return res.status(400).json({
-        message: "Seller product not found",
-      });
-    }
-
     /* =========================
-       ✅ STOCK CHECK
+       ✅ GLOBAL PRODUCT SUPPORT
     ========================= */
 
-    if (sellerProduct.stock < qty) {
-      return res.status(400).json({
-        message: "Not enough stock",
-      });
+    let finalSellerId = null;
+    let finalSellerProductId = null;
+
+    let sellPrice = product.price * qty;
+
+    let buyPrice = product.price * 0.8 * qty;
+
+    if (sellerProduct) {
+
+      if (sellerProduct.stock < qty) {
+        return res.status(400).json({
+          message: "Not enough stock",
+        });
+      }
+
+      finalSellerId = sellerProduct.sellerId?._id;
+
+      finalSellerProductId = sellerProduct._id;
+
+      sellPrice = sellerProduct.price * qty;
+
+      buyPrice = sellerProduct.price * 0.8 * qty;
     }
-
-    /* =========================
-       ✅ PRICE LOGIC
-    ========================= */
-
-    const sellPrice = sellerProduct.price * qty;
-
-    // seller buying cost
-    const buyPrice = sellerProduct.price * 0.8 * qty;
 
     /* =========================
        ✅ CREATE ORDER
@@ -97,12 +102,14 @@ export const placeOrder = async (req, res) => {
       customerId,
       productId,
 
-      // 🔥 IMPORTANT FIX
-      sellerId: sellerProduct.sellerId._id,
+      sellerId: finalSellerId,
+
+      sellerProductId: finalSellerProductId,
 
       quantity: qty,
 
       price: sellPrice,
+
       buyPrice,
 
       status: "pending",
@@ -123,6 +130,7 @@ export const placeOrder = async (req, res) => {
     });
 
   } catch (err) {
+
     console.error("PLACE ORDER ERROR:", err);
 
     return res.status(500).json({
@@ -139,17 +147,25 @@ export const placeOrder = async (req, res) => {
 
 export const getCustomerOrders = async (req, res) => {
   try {
+
     const orders = await Order.find({
       customerId: req.user._id,
     })
+
       .populate("productId")
+
       .populate("sellerId", "name email")
+
       .populate("buyerId", "name email")
+
+      .populate("sellerProductId")
+
       .sort({ createdAt: -1 });
 
     return res.json(orders);
 
   } catch (err) {
+
     console.error("CUSTOMER ORDERS ERROR:", err);
 
     return res.status(500).json({
@@ -164,6 +180,7 @@ export const getCustomerOrders = async (req, res) => {
 
 export const getSellerOrders = async (req, res) => {
   try {
+
     const seller = req.seller;
 
     if (!seller) {
@@ -175,18 +192,26 @@ export const getSellerOrders = async (req, res) => {
     const orders = await Order.find({
       sellerId: seller._id,
     })
+
       .populate("productId")
-      .populate("customerId", "name email")
+
+      .populate("sellerProductId")
+
+      .populate("customerId", "name email phone")
+
       .populate("buyerId", "name email country phone")
+
       .sort({ createdAt: -1 });
 
     return res.json(orders);
 
   } catch (err) {
+
     console.error("SELLER ORDERS ERROR:", err);
 
     return res.status(500).json({
       message: "Server error",
+      error: err.message,
     });
   }
 };
@@ -197,16 +222,23 @@ export const getSellerOrders = async (req, res) => {
 
 export const getPurchaseHistory = async (req, res) => {
   try {
+
     const orders = await Order.find({
       customerId: req.user._id,
     })
+
       .populate("productId")
+
       .populate("sellerId", "name")
+
+      .populate("sellerProductId")
+
       .sort({ createdAt: -1 });
 
     return res.status(200).json(orders);
 
   } catch (err) {
+
     console.error("PURCHASE HISTORY ERROR:", err);
 
     return res.status(500).json({
@@ -221,10 +253,16 @@ export const getPurchaseHistory = async (req, res) => {
 
 export const getInvoice = async (req, res) => {
   try {
+
     const order = await Order.findById(req.params.id)
+
       .populate("productId")
+
       .populate("customerId", "name email")
-      .populate("sellerId", "name email");
+
+      .populate("sellerId", "name email")
+
+      .populate("sellerProductId");
 
     if (!order) {
       return res.status(404).json({
@@ -261,6 +299,7 @@ export const getInvoice = async (req, res) => {
     });
 
   } catch (err) {
+
     console.error("GET INVOICE ERROR:", err);
 
     return res.status(500).json({
@@ -275,6 +314,7 @@ export const getInvoice = async (req, res) => {
 
 export const pickOrder = async (req, res) => {
   try {
+
     const orderId = req.params.id;
 
     const seller = req.seller;
@@ -290,7 +330,10 @@ export const pickOrder = async (req, res) => {
     ========================= */
 
     const order = await Order.findById(orderId)
-      .populate("productId");
+
+      .populate("productId")
+
+      .populate("sellerProductId");
 
     if (!order) {
       return res.status(404).json({
@@ -331,10 +374,10 @@ export const pickOrder = async (req, res) => {
        ✅ FIND SELLER PRODUCT
     ========================= */
 
-    const sellerProduct = await SellerProduct.findOne({
-      sellerId: seller._id,
-      productId: order.productId._id,
-    });
+    const sellerProduct =
+      await SellerProduct.findById(
+        order.sellerProductId
+      );
 
     if (!sellerProduct) {
       return res.status(404).json({
@@ -380,7 +423,7 @@ export const pickOrder = async (req, res) => {
     await sellerProduct.save();
 
     /* =========================
-       ✅ DEDUCT PRODUCT STOCK
+       ✅ DEDUCT MAIN PRODUCT STOCK
     ========================= */
 
     const product = await Product.findById(
@@ -388,6 +431,7 @@ export const pickOrder = async (req, res) => {
     );
 
     if (product) {
+
       product.stock -= quantity;
 
       if (product.stock < 0) {
@@ -401,11 +445,24 @@ export const pickOrder = async (req, res) => {
        ✅ DEDUCT SELLER WALLET
     ========================= */
 
-    seller.wallet.balances.USDT -= order.buyPrice;
+    if (!seller.wallet) {
+      seller.wallet = {
+        balances: {},
+        transactions: [],
+      };
+    }
+
+    if (!seller.wallet.balances) {
+      seller.wallet.balances = {};
+    }
 
     if (!seller.wallet.transactions) {
       seller.wallet.transactions = [];
     }
+
+    seller.wallet.balances.USDT =
+      (seller.wallet.balances.USDT || 0)
+      - order.buyPrice;
 
     seller.wallet.transactions.push({
       type: "debit",
@@ -413,6 +470,8 @@ export const pickOrder = async (req, res) => {
       amount: order.buyPrice,
       note: `Picked order for ${product?.name}`,
     });
+
+    seller.markModified("wallet");
 
     await seller.save();
 
@@ -437,6 +496,7 @@ export const pickOrder = async (req, res) => {
     });
 
   } catch (err) {
+
     console.error("PICK ORDER ERROR:", err);
 
     return res.status(500).json({
