@@ -19,7 +19,7 @@ export const addToCart = async (req, res) => {
     } = req.body;
 
     /* =========================
-       ✅ VALIDATE PRODUCT
+       ✅ CHECK PRODUCT
     ========================= */
 
     const product = await Product.findById(productId);
@@ -31,31 +31,31 @@ export const addToCart = async (req, res) => {
     }
 
     /* =========================
-       ✅ VALIDATE SELLER PRODUCT
+       ✅ OPTIONAL SELLER PRODUCT
     ========================= */
 
-    const sellerProduct = await SellerProduct.findById(
-      sellerProductId
-    );
+    let sellerProduct = null;
 
-    if (!sellerProduct) {
-      return res.status(404).json({
-        message: "Seller product not found",
-      });
+    if (sellerProductId) {
+      sellerProduct = await SellerProduct.findById(
+        sellerProductId
+      );
+
+      if (!sellerProduct) {
+        return res.status(404).json({
+          message: "Seller product not found",
+        });
+      }
+
+      if (sellerProduct.stock < quantity) {
+        return res.status(400).json({
+          message: "Not enough stock",
+        });
+      }
     }
 
     /* =========================
-       ✅ STOCK CHECK
-    ========================= */
-
-    if (sellerProduct.stock < quantity) {
-      return res.status(400).json({
-        message: "Not enough stock",
-      });
-    }
-
-    /* =========================
-       ✅ FIND USER CART
+       ✅ FIND CART
     ========================= */
 
     let cart = await Cart.findOne({ userId });
@@ -74,9 +74,13 @@ export const addToCart = async (req, res) => {
     const existingItem = cart.items.find(
       (item) =>
         item.productId.toString() === productId &&
-        item.sellerProductId.toString() === sellerProductId &&
         item.size === size &&
-        item.color === color
+        item.color === color &&
+        (
+          sellerProductId
+            ? item.sellerProductId?.toString() === sellerProductId
+            : true
+        )
     );
 
     /* =========================
@@ -95,11 +99,12 @@ export const addToCart = async (req, res) => {
       cart.items.push({
         productId,
 
-        // 🔥 IMPORTANT
-        sellerId: sellerProduct.sellerId,
+        sellerId:
+          sellerProduct?.sellerId ||
+          product.seller,
 
-        // 🔥 IMPORTANT
-        sellerProductId,
+        sellerProductId:
+          sellerProduct?._id || null,
 
         quantity,
 
@@ -107,15 +112,16 @@ export const addToCart = async (req, res) => {
 
         color,
 
-        // 🔥 SAVE PRICE SNAPSHOT
-        price: sellerProduct.price,
+        price:
+          sellerProduct?.price ||
+          product.price,
       });
     }
 
     await cart.save();
 
     /* =========================
-       ✅ RETURN POPULATED CART
+       ✅ RETURN UPDATED CART
     ========================= */
 
     const updatedCart = await Cart.findById(cart._id)
