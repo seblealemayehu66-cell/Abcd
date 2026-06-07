@@ -10,7 +10,6 @@ import SellerProduct from "../models/SellerProduct.js";
 
 export const saveShipping = async (req, res) => {
   try {
-
     const userId = req.user.id;
 
     const {
@@ -24,25 +23,11 @@ export const saveShipping = async (req, res) => {
       postalCode,
     } = req.body;
 
-    /* =========================
-       ✅ VALIDATION
-    ========================= */
-
-    if (
-      !fullName ||
-      !phone ||
-      !addressLine1 ||
-      !city ||
-      !country
-    ) {
+    if (!fullName || !phone || !addressLine1 || !city || !country) {
       return res.status(400).json({
         message: "Please fill required shipping fields",
       });
     }
-
-    /* =========================
-       ✅ FIND CART
-    ========================= */
 
     const cart = await Cart.findOne({ userId });
 
@@ -51,10 +36,6 @@ export const saveShipping = async (req, res) => {
         message: "Cart is empty",
       });
     }
-
-    /* =========================
-       ✅ SAVE SHIPPING
-    ========================= */
 
     cart.shippingAddress = {
       fullName,
@@ -76,9 +57,7 @@ export const saveShipping = async (req, res) => {
     });
 
   } catch (err) {
-
     console.error("SAVE SHIPPING ERROR:", err);
-
     return res.status(500).json({
       message: "Server error",
       error: err.message,
@@ -92,15 +71,13 @@ export const saveShipping = async (req, res) => {
 
 export const processPayment = async (req, res) => {
   try {
-
     const userId = req.user.id;
 
     let { paymentMethod } = req.body;
-
     paymentMethod = paymentMethod?.replace("-", "_");
 
     /* =========================
-       ✅ GET USER CART
+       ✅ GET CART
     ========================= */
 
     const cart = await Cart.findOne({ userId })
@@ -114,10 +91,6 @@ export const processPayment = async (req, res) => {
       });
     }
 
-    /* =========================
-       ✅ SHIPPING CHECK
-    ========================= */
-
     if (!cart.shippingAddress) {
       return res.status(400).json({
         message: "Shipping address missing",
@@ -125,7 +98,7 @@ export const processPayment = async (req, res) => {
     }
 
     /* =========================
-       ✅ FIND USER
+       ✅ USER
     ========================= */
 
     const user = await User.findById(userId);
@@ -136,15 +109,8 @@ export const processPayment = async (req, res) => {
       });
     }
 
-    /* =========================
-       ✅ WALLET INIT
-    ========================= */
-
     if (!user.wallet) {
-      user.wallet = {
-        balances: {},
-        transactions: [],
-      };
+      user.wallet = { balances: {}, transactions: [] };
     }
 
     if (!user.wallet.balances) {
@@ -156,7 +122,7 @@ export const processPayment = async (req, res) => {
     }
 
     /* =========================
-       ✅ TOTAL CALCULATION
+       ✅ TOTAL
     ========================= */
 
     let totalAmount = 0;
@@ -166,20 +132,15 @@ export const processPayment = async (req, res) => {
     });
 
     /* =========================
-       ✅ SAFE DEDUCT FUNCTION
+       ✅ WALLET DEDUCT
     ========================= */
 
     const deductCoin = (coin) => {
+      const balance = user.wallet.balances[coin] || 0;
 
-      const balance =
-        user.wallet.balances[coin] || 0;
+      if (balance < totalAmount) return false;
 
-      if (balance < totalAmount) {
-        return false;
-      }
-
-      user.wallet.balances[coin] =
-        balance - totalAmount;
+      user.wallet.balances[coin] = balance - totalAmount;
 
       user.wallet.transactions.push({
         type: "debit",
@@ -191,15 +152,8 @@ export const processPayment = async (req, res) => {
       return true;
     };
 
-    /* =========================
-       ✅ PAYMENT LOGIC
-    ========================= */
-
     if (paymentMethod === "wallet") {
-
-      const success = deductCoin("USDT");
-
-      if (!success) {
+      if (!deductCoin("USDT")) {
         return res.status(400).json({
           message: "Insufficient USDT balance",
         });
@@ -207,10 +161,7 @@ export const processPayment = async (req, res) => {
     }
 
     else if (paymentMethod === "btc") {
-
-      const success = deductCoin("BTC");
-
-      if (!success) {
+      if (!deductCoin("BTC")) {
         return res.status(400).json({
           message: "Insufficient BTC balance",
         });
@@ -218,10 +169,7 @@ export const processPayment = async (req, res) => {
     }
 
     else if (paymentMethod === "eth") {
-
-      const success = deductCoin("ETH");
-
-      if (!success) {
+      if (!deductCoin("ETH")) {
         return res.status(400).json({
           message: "Insufficient ETH balance",
         });
@@ -229,10 +177,7 @@ export const processPayment = async (req, res) => {
     }
 
     else if (paymentMethod === "sol") {
-
-      const success = deductCoin("SOL");
-
-      if (!success) {
+      if (!deductCoin("SOL")) {
         return res.status(400).json({
           message: "Insufficient SOL balance",
         });
@@ -240,15 +185,9 @@ export const processPayment = async (req, res) => {
     }
 
     else if (
-      paymentMethod === "usdt_trc20" ||
-      paymentMethod === "usdt_erc20"
+      paymentMethod !== "usdt_trc20" &&
+      paymentMethod !== "usdt_erc20"
     ) {
-
-      // simulated external payment
-
-    }
-
-    else {
       return res.status(400).json({
         message: "Invalid payment method",
       });
@@ -259,14 +198,9 @@ export const processPayment = async (req, res) => {
     ========================= */
 
     const orders = [];
-
     const shipping = cart.shippingAddress;
 
     for (const item of cart.items) {
-
-      /* =========================
-         ✅ FIND PRODUCT
-      ========================= */
 
       const product = await Product.findById(
         item.productId?._id || item.productId
@@ -278,112 +212,73 @@ export const processPayment = async (req, res) => {
         });
       }
 
-      /* =========================
-         ✅ DEFAULT VALUES
-      ========================= */
-
       let finalSellerId = null;
-
       let finalPrice = item.price;
 
       /* =========================
-         ✅ IF SELLER PRODUCT
+         🔥 FIXED SELLER PRODUCT HANDLING
       ========================= */
 
       if (item.sellerProductId) {
 
+        const sellerProductId =
+          typeof item.sellerProductId === "object"
+            ? item.sellerProductId._id
+            : item.sellerProductId;
+
         const sellerProduct =
-          await SellerProduct.findById(
-            item.sellerProductId
-          );
+          await SellerProduct.findById(sellerProductId);
 
         if (!sellerProduct) {
           return res.status(400).json({
-            message: "Seller product not found",
+            message: "Invalid sellerProductId in cart",
           });
         }
-
-        /* =========================
-           ✅ STOCK CHECK
-        ========================= */
 
         if (sellerProduct.stock < item.quantity) {
           return res.status(400).json({
-            message:
-              `Not enough stock for ${product.name}`,
+            message: `Not enough stock for ${product.name}`,
           });
         }
 
-        /* =========================
-           ✅ UPDATE SELLER STOCK
-        ========================= */
-
         sellerProduct.stock -= item.quantity;
-
-        if (sellerProduct.stock < 0) {
-          sellerProduct.stock = 0;
-        }
-
+        if (sellerProduct.stock < 0) sellerProduct.stock = 0;
         await sellerProduct.save();
 
-        /* =========================
-           ✅ SELLER INFO
-        ========================= */
-
         finalSellerId = sellerProduct.sellerId;
-
         finalPrice = sellerProduct.price;
       }
 
       /* =========================
-         ✅ GLOBAL PRODUCT STOCK
+         GLOBAL PRODUCT STOCK
       ========================= */
 
       if (product.stock < item.quantity) {
         return res.status(400).json({
-          message:
-            `Not enough stock for ${product.name}`,
+          message: `Not enough stock for ${product.name}`,
         });
       }
 
       product.stock -= item.quantity;
-
-      if (product.stock < 0) {
-        product.stock = 0;
-      }
-
+      if (product.stock < 0) product.stock = 0;
       await product.save();
 
       /* =========================
-         ✅ CREATE ORDER
+         CREATE ORDER
       ========================= */
 
       const order = await Order.create({
-
         buyerId: userId,
-
         customerId: userId,
-
         productId: product._id,
-
-        // ✅ NULL FOR GLOBAL PRODUCTS
-        sellerId: finalSellerId,
-
+        sellerId: finalSellerId, // ✅ FIXED
         quantity: item.quantity,
-
         price: finalPrice * item.quantity,
-
-        buyPrice:
-          finalPrice * 0.8 * item.quantity,
-
+        buyPrice: finalPrice * 0.8 * item.quantity,
         frozenAmount: 0,
-
         status: "pending",
-
         isPaid: true,
-
         paymentMethod,
-
         shippingAddress: shipping,
       });
 
@@ -391,26 +286,19 @@ export const processPayment = async (req, res) => {
     }
 
     /* =========================
-       ✅ SAVE USER WALLET
+       SAVE USER WALLET
     ========================= */
 
     user.markModified("wallet");
-
     await user.save();
 
     /* =========================
-       ✅ CLEAR CART
+       CLEAR CART
     ========================= */
 
     cart.items = [];
-
     cart.shippingAddress = null;
-
     await cart.save();
-
-    /* =========================
-       ✅ RESPONSE
-    ========================= */
 
     return res.json({
       success: true,
@@ -420,9 +308,7 @@ export const processPayment = async (req, res) => {
     });
 
   } catch (err) {
-
     console.error("PAYMENT ERROR:", err);
-
     return res.status(500).json({
       success: false,
       message: "Server error",
