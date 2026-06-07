@@ -8,6 +8,7 @@ import SellerProduct from "../models/SellerProduct.js";
 
 export const addToCart = async (req, res) => {
   try {
+
     const userId = req.user.id;
 
     const {
@@ -31,31 +32,44 @@ export const addToCart = async (req, res) => {
     }
 
     /* =========================
-       ✅ SELLER PRODUCT IS REQUIRED (SOURCE OF TRUTH)
+       ✅ OPTIONAL SELLER PRODUCT
     ========================= */
 
-    if (!sellerProductId) {
-      return res.status(400).json({
-        message: "sellerProductId is required",
-      });
+    let sellerProduct = null;
+
+    // ✅ ONLY CHECK IF EXISTS
+    if (sellerProductId) {
+
+      sellerProduct =
+        await SellerProduct.findById(
+          sellerProductId
+        );
+
+      if (!sellerProduct) {
+        return res.status(404).json({
+          message: "Seller product not found",
+        });
+      }
+
+      /* =========================
+         ✅ SELLER STOCK CHECK
+      ========================= */
+
+      if (sellerProduct.stock < quantity) {
+        return res.status(400).json({
+          message: "Not enough stock",
+        });
+      }
     }
 
-    const sellerProduct = await SellerProduct.findById(sellerProductId);
+    // ✅ GLOBAL PRODUCT STOCK CHECK
+    else {
 
-    if (!sellerProduct) {
-      return res.status(404).json({
-        message: "Seller product not found",
-      });
-    }
-
-    /* =========================
-       ✅ STOCK CHECK
-    ========================= */
-
-    if (sellerProduct.stock < quantity) {
-      return res.status(400).json({
-        message: "Not enough stock",
-      });
+      if (product.stock < quantity) {
+        return res.status(400).json({
+          message: "Not enough stock",
+        });
+      }
     }
 
     /* =========================
@@ -77,18 +91,30 @@ export const addToCart = async (req, res) => {
 
     const existingItem = cart.items.find(
       (item) =>
-        item.productId.toString() === productId &&
+        item.productId.toString() ===
+          productId &&
+
         item.size === size &&
-        item.color === color &&
-        item.sellerProductId?.toString() === sellerProductId
+
+        JSON.stringify(item.color) ===
+          JSON.stringify(color) &&
+
+        (
+          item.sellerProductId?.toString() ||
+          null
+        ) === (
+          sellerProductId || null
+        )
     );
 
     /* =========================
-       ✅ UPDATE EXISTING ITEM
+       ✅ UPDATE ITEM
     ========================= */
 
     if (existingItem) {
-      existingItem.quantity += Number(quantity);
+
+      existingItem.quantity +=
+        Number(quantity);
     }
 
     /* =========================
@@ -96,12 +122,18 @@ export const addToCart = async (req, res) => {
     ========================= */
 
     else {
+
       cart.items.push({
+
         productId,
 
-        sellerId: sellerProduct.sellerId, // ✅ ALWAYS FROM DB
+        // ✅ NULL FOR GLOBAL PRODUCT
+        sellerId:
+          sellerProduct?.sellerId || null,
 
-        sellerProductId: sellerProduct._id,
+        // ✅ NULL FOR GLOBAL PRODUCT
+        sellerProductId:
+          sellerProduct?._id || null,
 
         quantity: Number(quantity),
 
@@ -109,7 +141,10 @@ export const addToCart = async (req, res) => {
 
         color,
 
-        price: sellerProduct.price,
+        // ✅ GLOBAL OR SELLER PRICE
+        price:
+          sellerProduct?.price ||
+          product.price,
       });
     }
 
@@ -119,10 +154,17 @@ export const addToCart = async (req, res) => {
        ✅ RETURN UPDATED CART
     ========================= */
 
-    const updatedCart = await Cart.findById(cart._id)
-      .populate("items.productId")
-      .populate("items.sellerId", "name email")
-      .populate("items.sellerProductId");
+    const updatedCart =
+      await Cart.findById(cart._id)
+
+        .populate("items.productId")
+
+        .populate(
+          "items.sellerId",
+          "name email"
+        )
+
+        .populate("items.sellerProductId");
 
     return res.json({
       success: true,
@@ -131,7 +173,11 @@ export const addToCart = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("ADD TO CART ERROR:", err);
+
+    console.error(
+      "ADD TO CART ERROR:",
+      err
+    );
 
     return res.status(500).json({
       success: false,
