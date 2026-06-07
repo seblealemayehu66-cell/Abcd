@@ -18,11 +18,11 @@ const cartSchema = new mongoose.Schema(
         },
 
         // SELLER
-        sellerId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
-          required: true,
-        },
+       sellerId: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "User",
+  default: null,
+},
 
         // OPTIONAL
         // only exists if product came from SellerProduct
