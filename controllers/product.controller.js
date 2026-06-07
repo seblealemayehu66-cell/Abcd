@@ -692,6 +692,41 @@ export const publishCart = async (req, res) => {
   }
 };
 
+/* =========================
+   GET SINGLE SELLER PRODUCT
+========================= */
+
+export const getSellerProductByProduct = async (req, res) => {
+  try {
+
+    const { productId } = req.params;
+
+    const sellerProduct =
+      await SellerProduct.findOne({
+        productId
+      })
+      .populate("sellerId", "name email shop");
+
+    if (!sellerProduct) {
+      return res.status(404).json({
+        message: "Seller product not found"
+      });
+    }
+
+    res.json(sellerProduct);
+
+  } catch (error) {
+
+    console.log(error);
+
+    res.status(500).json({
+      message: "Server error"
+    });
+
+  }
+};
+
+
 // ✅ GET SELLER PRODUCTS
 export const getSellerProducts = async (req, res) => {
   try {
