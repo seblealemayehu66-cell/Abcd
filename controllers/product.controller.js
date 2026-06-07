@@ -514,27 +514,60 @@ export const bulkImportProducts =
 // ✅ GET SINGLE PRODUCT
 export const getSingleProduct = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id).populate("category");
+
+    const product = await Product.findById(req.params.id)
+      .populate("category");
 
     if (!product) {
-      return res.status(404).json({ message: "Product not found" });
+      return res.status(404).json({
+        message: "Product not found"
+      });
     }
 
-    const orderCount = await Order.countDocuments({ productId: req.params.id });
+    // ✅ FIND SELLER PRODUCT
+    const sellerProduct = await SellerProduct.findOne({
+      productId: product._id
+    }).populate("sellerId", "name email");
 
-    const reviews = await Review.find({ productId: req.params.id })
+    const orderCount = await Order.countDocuments({
+      productId: req.params.id
+    });
+
+    const reviews = await Review.find({
+      productId: req.params.id
+    })
       .populate("userId", "name")
       .sort({ createdAt: -1 });
 
     res.json({
       ...product.toObject(),
+
+      // ✅ IMPORTANT
+      sellerProductId: sellerProduct?._id || null,
+
+      // ✅ IMPORTANT
+      sellerId: sellerProduct?.sellerId?._id || null,
+
+      // ✅ OPTIONAL
+      seller: sellerProduct?.sellerId || null,
+
+      // ✅ SELLER PRICE/STOCK
+      sellerPrice: sellerProduct?.price || product.price,
+
+      sellerStock: sellerProduct?.stock || product.stock,
+
       orderCount,
+
       reviews
     });
 
   } catch (error) {
+
     console.log("ERROR:", error.message);
-    res.status(500).json({ message: "Server error" });
+
+    res.status(500).json({
+      message: "Server error"
+    });
   }
 };
 
@@ -675,11 +708,14 @@ export const publishCart = async (req, res) => {
         await existing.save();
       } else {
         await SellerProduct.create({
-          sellerId,
-          productId: item.productId,
-          price: item.price || 0,
-          stock: item.stock || 0,
-        });
+  sellerId: sellerId,
+
+  productId: item.productId,
+
+  price: item.price || 0,
+
+  stock: item.stock || 0
+});
       }
     }
 
