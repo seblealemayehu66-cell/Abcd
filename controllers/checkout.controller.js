@@ -267,20 +267,38 @@ export const processPayment = async (req, res) => {
          CREATE ORDER
       ========================= */
 
-      const order = await Order.create({
-        buyerId: userId,
-        customerId: userId,
-        productId: product._id,
-        sellerId: finalSellerId, // ✅ FIXED
-        quantity: item.quantity,
-        price: finalPrice * item.quantity,
-        buyPrice: finalPrice * 0.8 * item.quantity,
-        frozenAmount: 0,
-        status: "pending",
-        isPaid: true,
-        paymentMethod,
-        shippingAddress: shipping,
-      });
+     const order = await Order.create({
+  buyerId: userId,
+
+  customerId: userId,
+
+  productId: product._id,
+
+  // ✅ IMPORTANT
+  sellerProductId:
+    item.sellerProductId?._id ||
+    item.sellerProductId ||
+    null,
+
+  sellerId: finalSellerId,
+
+  quantity: item.quantity,
+
+  price: finalPrice * item.quantity,
+
+  buyPrice:
+    finalPrice * 0.8 * item.quantity,
+
+  frozenAmount: 0,
+
+  status: "pending",
+
+  isPaid: true,
+
+  paymentMethod,
+
+  shippingAddress: shipping,
+});
 
       orders.push(order);
     }
