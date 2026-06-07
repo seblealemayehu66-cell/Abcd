@@ -236,8 +236,13 @@ export const getSellerOrders = async (req, res) => {
 export const getPurchaseHistory = async (req, res) => {
   try {
 
+    const userId =
+      req.user._id || req.user.id;
+
+    console.log("USER ID:", userId);
+
     const orders = await Order.find({
-      customerId: req.user._id,
+      customerId: userId,
     })
 
       .populate("productId")
@@ -248,14 +253,21 @@ export const getPurchaseHistory = async (req, res) => {
 
       .sort({ createdAt: -1 });
 
+    console.log("ORDERS:", orders);
+
     return res.status(200).json(orders);
 
   } catch (err) {
 
-    console.error("PURCHASE HISTORY ERROR:", err);
+    console.error(
+      "PURCHASE HISTORY ERROR:",
+      err
+    );
 
     return res.status(500).json({
-      message: "Server error fetching purchase history",
+      message:
+        "Server error fetching purchase history",
+      error: err.message,
     });
   }
 };
