@@ -23,19 +23,18 @@ const orderSchema = new mongoose.Schema(
       required: true,
     },
 
-    // 🔥 IMPORTANT NEW FIELD
-    // Exact seller product selected
+    // ✅ OPTIONAL FOR GLOBAL PRODUCTS
     sellerProductId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "SellerProduct",
-      required: true,
+      default: null,
     },
 
-    // Seller owner
+    // ✅ OPTIONAL FOR GLOBAL PRODUCTS
     sellerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      default: null,
     },
 
     quantity: {
@@ -96,6 +95,9 @@ const orderSchema = new mongoose.Schema(
       type: String,
       enum: [
         "wallet",
+        "btc",
+        "eth",
+        "sol",
         "usdt_trc20",
         "usdt_erc20",
         "Credit Card",
