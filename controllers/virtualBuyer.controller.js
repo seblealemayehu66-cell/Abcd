@@ -36,8 +36,8 @@ export const createVirtualBuyer = async (req, res) => {
       return res.status(400).json({ message: "Email already exists" });
     }
 
-    // 🔐 Generate password
-    const password = Math.random().toString(36).slice(-8);
+    // 🔐 FIXED PASSWORD (NO RANDOM)
+    const password = "123456";
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // 👤 Generate name from email if not provided
@@ -53,20 +53,28 @@ export const createVirtualBuyer = async (req, res) => {
     const finalCountry = country || generateCountry();
     const finalPhone = phone || generatePhone();
 
+    // 💰 FIXED WALLET STRUCTURE
+    const usdtBalance = balance || 1000;
+
     // 🧾 Create user
     const virtualBuyer = new User({
       name: generatedName,
       email,
       password: hashedPassword,
+
+      // ❌ CHANGED FLAGS
       isVirtualBuyer: true,
-      isSeller: true,
-      isApproved: true,
+      isSeller: false,
+      isApproved: false,
 
       country: finalCountry,
       phone: finalPhone,
 
+      // 💰 UPDATED WALLET STRUCTURE
       wallet: {
-        balance: balance || 1000,
+        balances: {
+          USDT: usdtBalance,
+        },
       },
     });
 
@@ -79,7 +87,7 @@ export const createVirtualBuyer = async (req, res) => {
         name: virtualBuyer.name,
         email: virtualBuyer.email,
         password,
-        wallet: virtualBuyer.wallet.balance,
+        wallet: virtualBuyer.wallet?.balances?.USDT,
         country: virtualBuyer.country,
         phone: virtualBuyer.phone,
       },
@@ -92,6 +100,7 @@ export const createVirtualBuyer = async (req, res) => {
     });
   }
 };
+
 export const updateVirtualBuyer = async (req, res) => {
   try {
     const { id } = req.params;
