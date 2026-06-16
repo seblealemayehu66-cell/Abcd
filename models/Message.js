@@ -14,6 +14,13 @@ const messageSchema = new mongoose.Schema(
       required: true,
     },
 
+    // ✅ NEW
+    productId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+      required: true,
+    },
+
     text: {
       type: String,
       required: true,
