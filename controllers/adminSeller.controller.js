@@ -1,6 +1,6 @@
 import User from "../models/User.js";
  import jwt from "jsonwebtoken";
-
+import Seller from "../models/Seller.js";
 // Get all seller requests (pending & approved)
 export const getAllSellers = async (req, res) => {
   try {
@@ -29,7 +29,6 @@ export const getAllSellers = async (req, res) => {
     });
   }
 };
-
 // Approve seller
 export const approveSeller = async (req, res) => {
   try {
