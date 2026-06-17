@@ -1,34 +1,13 @@
 import User from "../models/User.js";
  import jwt from "jsonwebtoken";
-import Seller from "../models/Seller.js";
+
 // Get all seller requests (pending & approved)
-export const getAllSellers = async (req, res) => {
-  try {
-
-    if (!req.user.isAdmin) {
-      return res.status(403).json({
-        message: "Unauthorized",
-      });
-    }
-
-    const sellers = await Seller.find()
-      .populate(
-        "userId",
-        "name email"
-      )
-      .sort({ createdAt: -1 });
-
-    res.json(sellers);
-
-  } catch (err) {
-
-    console.log(err);
-
-    res.status(500).json({
-      message: "Server error",
-    });
-  }
-};
+export const getAllSellers = async (req, res) => { 
+ try { 
+  if (!req.user.isAdmin) 
+   return res.status(403).json({ message: "Unauthorized" }); 
+  const sellers = await User.find({ isSeller: true }).select( "name email isApproved shop" ); 
+  res.json(sellers); } catch (err) { console.log(err); res.status(500).json({ message: "Server error" }); } };
 // Approve seller
 export const approveSeller = async (req, res) => {
   try {
