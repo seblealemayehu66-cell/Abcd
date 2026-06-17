@@ -76,7 +76,7 @@ router.post(
   }
 );
 
-export default router;
+
 
 
 // Admin: Get pending sellers
