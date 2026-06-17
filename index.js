@@ -1,13 +1,14 @@
 import mongoose from "mongoose";
 import express from "express";
 import cors from "cors";
+import path from "path";
 import reviewRoutes from "./routes/review.routes.js";
 
 import adminWalletRoutes from "./routes/adminWallet.routes.js";
 import withdrawRoutes from "./routes/withdraw.routes.js";
 import adminWithdrawRoutes from "./routes/admin.withdraw.routes.js";
 import messageRoutes from "./routes/messageRoutes.js";
-import path from "path";
+
 
 
 
@@ -84,8 +85,6 @@ startAutoDelivery();
 
 const app = express();
 
-// ✅ FIX: make uploads publicly accessible
-app.use("/uploads", express.static("uploads"));
 
 
 app.use(cors());
@@ -97,6 +96,8 @@ app.use(express.json());
 // Routes
 
 
+// ✅ FIX: make uploads publicly accessible
+app.use("/uploads", express.static("uploads"));
 app.use("/api/auth", authRoutes);
 
 
