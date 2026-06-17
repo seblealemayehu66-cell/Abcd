@@ -7,6 +7,10 @@ import adminWalletRoutes from "./routes/adminWallet.routes.js";
 import withdrawRoutes from "./routes/withdraw.routes.js";
 import adminWithdrawRoutes from "./routes/admin.withdraw.routes.js";
 import messageRoutes from "./routes/messageRoutes.js";
+import path from "path";
+
+
+
 
 
 
@@ -137,7 +141,8 @@ app.use((req, res) => res.status(404).json({ error: "Route not found" }));
 
 // ===== DATABASE CONNECTION =====
 
-
+// ✅ FIX: make uploads publicly accessible
+app.use("/uploads", express.static("uploads"));
 
 
 // ===== DATABASE CONNECTION =====
