@@ -20,32 +20,20 @@ router.post(
   upload.single("idDocument"),
   async (req, res) => {
     try {
+      console.log("BODY:", req.body);
+      console.log("FILE:", req.file);
+
       const user = await User.findById(req.user.id);
 
       if (!user) {
-        return res.status(404).json({
-          message: "User not found",
-        });
+        return res.status(404).json({ message: "User not found" });
       }
 
-      let documentUrl = "";
-
-      if (req.file) {
-        const result = await new Promise((resolve, reject) => {
-          cloudinary.uploader
-            .upload_stream(
-              {
-                folder: "seller-documents",
-              },
-              (error, result) => {
-                if (error) reject(error);
-                else resolve(result);
-              }
-            )
-            .end(req.file.buffer);
+      // 🚨 CHECK FILE FIRST (IMPORTANT FIX)
+      if (!req.file) {
+        return res.status(400).json({
+          message: "Empty file - upload failed"
         });
-
-        documentUrl = result.secure_url;
       }
 
       user.isSeller = true;
@@ -54,24 +42,21 @@ router.post(
       user.shop = {
         name: req.body.shopName,
         photo: "",
-        idDocument: documentUrl,
+        idDocument: req.file.path, // local file path
         invitationCode: req.body.invitationCode,
         contact: req.body.emergencyContact,
-        address: req.body.address,
+        address: req.body.address
       };
 
       await user.save();
 
-      res.json({
-        message:
-          "Shop registration submitted successfully. Waiting for admin approval.",
+      return res.json({
+        message: "Shop registration submitted successfully"
       });
-    } catch (error) {
-      console.error(error);
 
-      res.status(500).json({
-        message: "Server error",
-      });
+    } catch (error) {
+      console.error("SELLER ROUTE ERROR:", error);
+      return res.status(500).json({ message: "Server error" });
     }
   }
 );
