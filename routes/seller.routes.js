@@ -14,52 +14,28 @@ const router = express.Router();
 
 
 
-router.post(
-  "/register-shop",
-  authMiddleware,
-  upload.single("idDocument"),
-  async (req, res) => {
-    try {
-      console.log("BODY:", req.body);
-      console.log("FILE:", req.file);
-
-      const user = await User.findById(req.user.id);
-
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      // 🚨 CHECK FILE FIRST (IMPORTANT FIX)
-      if (!req.file) {
-        return res.status(400).json({
-          message: "Empty file - upload failed"
-        });
-      }
-
-      user.isSeller = true;
-      user.isApproved = false;
-
-      user.shop = {
-        name: req.body.shopName,
-        photo: "",
-        idDocument: req.file.path, // local file path
-        invitationCode: req.body.invitationCode,
-        contact: req.body.emergencyContact,
-        address: req.body.address
-      };
-
-      await user.save();
-
-      return res.json({
-        message: "Shop registration submitted successfully"
-      });
-
-    } catch (error) {
-      console.error("SELLER ROUTE ERROR:", error);
-      return res.status(500).json({ message: "Server error" });
-    }
+router.post( "/register-shop", authMiddleware, upload.single("idDocument"), async (req, res) => { 
+  try { const user = await User.findById(req.user.id); 
+       if (!user)
+  {
+    return res.status(404).json({ message: "User not found" }); 
   }
-);
+       // Update user as seller 
+       user.isSeller = true; 
+       user.isApproved = false; 
+       user.shop = { name: req.body.shopName, 
+       photo: "", 
+      // optional if you add shop photo later
+  idDocument: req.file?.path,
+  invitationCode: req.body.invitationCode,
+  contact: req.body.emergencyContact, 
+address: req.body.address };
+await user.save(); 
+res.json({ message: "Shop registration submitted successfully. Waiting for admin approval." });
+      } 
+  catch (error) { console.error(error); res.status(500).json({ message: "Server error" }); 
+                } 
+} );
 
 
 
