@@ -96,7 +96,7 @@ const userSchema = new mongoose.Schema(
     },
 creditScore: {
   type: Number,
-  default: 100,
+  default: 0,
 },
     isVirtualBuyer: {
       type: Boolean,
