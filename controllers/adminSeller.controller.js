@@ -6,7 +6,7 @@ export const getAllSellers = async (req, res) => {
  try { 
   if (!req.user.isAdmin) 
    return res.status(403).json({ message: "Unauthorized" }); 
-  const sellers = await User.find({ isSeller: true }).select( "name email isApproved shop" ); 
+  const sellers = await User.find({ isSeller: true }).select( "name email isApproved creditScore shop" ); 
   res.json(sellers); } catch (err) { console.log(err); res.status(500).json({ message: "Server error" }); } };
 // Approve seller
 export const approveSeller = async (req, res) => {
@@ -18,12 +18,49 @@ export const approveSeller = async (req, res) => {
     if (!seller) return res.status(404).json({ message: "Seller not found" });
 
     seller.isApproved = true;
+   if (!seller.creditScore) {
+  seller.creditScore = 100;
+}
     await seller.save();
 
     res.json({ message: "Seller approved successfully", seller });
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Server error" });
+  }
+};
+export const updateSellerCreditScore = async (req, res) => {
+  try {
+    if (!req.user.isAdmin) {
+      return res.status(403).json({
+        message: "Unauthorized",
+      });
+    }
+
+    const { creditScore } = req.body;
+
+    const seller = await User.findById(req.params.id);
+
+    if (!seller) {
+      return res.status(404).json({
+        message: "Seller not found",
+      });
+    }
+
+    seller.creditScore = Number(creditScore);
+
+    await seller.save();
+
+    res.json({
+      message: "Credit score updated",
+      seller,
+    });
+  } catch (err) {
+    console.log(err);
+
+    res.status(500).json({
+      message: "Server error",
+    });
   }
 };
 
