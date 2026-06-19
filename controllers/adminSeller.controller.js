@@ -63,6 +63,40 @@ export const updateSellerCreditScore = async (req, res) => {
     });
   }
 };
+export const updateSellerCreditScore = async (req, res) => {
+  try {
+    if (!req.user.isAdmin) {
+      return res.status(403).json({
+        message: "Unauthorized",
+      });
+    }
+
+    const { creditScore } = req.body;
+
+    const seller = await User.findById(req.params.id);
+
+    if (!seller) {
+      return res.status(404).json({
+        message: "Seller not found",
+      });
+    }
+
+    seller.creditScore = Number(creditScore);
+
+    await seller.save();
+
+    res.json({
+      message: "Credit score updated successfully",
+      seller,
+    });
+  } catch (err) {
+    console.log(err);
+
+    res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
 
 // Reject seller
 export const rejectSeller = async (req, res) => {
