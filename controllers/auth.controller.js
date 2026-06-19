@@ -61,6 +61,8 @@ export const login = async (req, res) => {
         isSeller: user.isSeller,
         isApproved: user.isApproved,
         isVirtualBuyer: user.isVirtualBuyer || false,
+        creditScore: user.creditScore || 0,
+        shop: user.shop,
       },
     });
   } catch (error) {
