@@ -5,6 +5,7 @@ import {
   approveSeller,
   rejectSeller,
   loginAsSeller,
+  updateSellerCreditScore
 } from "../controllers/adminSeller.controller.js";
 
 const router = express.Router();
@@ -20,5 +21,10 @@ router.put("/sellers/reject/:id", authMiddleware, rejectSeller);
 
 // Login as seller
 router.post("/sellers/login-as/:id", authMiddleware, loginAsSeller);
+router.put(
+  "/sellers/credit-score/:id",
+  authMiddleware,
+  updateSellerCreditScore
+);
 
 export default router;
