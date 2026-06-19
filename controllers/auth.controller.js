@@ -155,7 +155,7 @@ export const getAllSellers = async (req, res) => {
       return res.status(403).json({ message: "Unauthorized" });
 
     const sellers = await User.find({ isSeller: true }).select(
-      "name email isApproved shop"
+      "name email isApproved shop creditScore"
     );
     res.json(sellers);
   } catch (err) {
