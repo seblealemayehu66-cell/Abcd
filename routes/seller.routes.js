@@ -37,11 +37,7 @@ res.json({ message: "Shop registration submitted successfully. Waiting for admin
                 } 
 } );
 
-router.put(
-  "/sellers/credit-score/:id",
-  authMiddleware,
-  updateSellerCreditScore
-);
+
 
 
 // Admin: Get pending sellers
