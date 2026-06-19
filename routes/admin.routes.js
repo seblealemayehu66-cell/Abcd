@@ -4,7 +4,7 @@ import User from "../models/User.js";
 import Product from "../models/Product.js";
 import Order from "../models/Order.js";
 import { placeOrder } from "../controllers/order.controller.js";
-import { getAllSellers, approveSeller, rejectSeller, loginAsSeller } from "../controllers/auth.controller.js";
+import { getAllSellers, approveSeller, rejectSeller, loginAsSeller,updateSellerCreditScore, } from "../controllers/auth.controller.js";
 
 import { getAllUsers } from "../controllers/admin.controller.js";
 
@@ -24,6 +24,11 @@ router.get("/sellers", authMiddleware, getAllSellers);
 // Login as seller (admin impersonates)
 router.get("/sellers/login-as/:userId", authMiddleware, loginAsSeller);
 router.get("/users", getAllUsers);
+router.put(
+  "/credit-score/:id",
+  authMiddleware,
+  updateSellerCreditScore
+);
 
 
 // Approve seller
