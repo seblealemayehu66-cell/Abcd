@@ -225,6 +225,7 @@ export const loginAsSeller = async (req, res) => {
         isAdmin: seller.isAdmin,
         isSeller: seller.isSeller,
         isApproved: seller.isApproved,
+        creditScore: seller.creditScore || 0,
         shop: seller.shop,
       },
     });
