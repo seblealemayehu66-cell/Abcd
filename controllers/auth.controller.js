@@ -77,7 +77,8 @@ export const login = async (req, res) => {
 export const registerShop = async (req, res) => {
   try {
     const { userId, shopName, invitationCode, contact, address } = req.body;
-    const validInvitationCodes = [
+    
+  const validInvitationCodes = [
   "MERCARI100",
   "MERCARI200",
   "MERCARI300",
