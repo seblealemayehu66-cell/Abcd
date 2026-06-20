@@ -76,6 +76,8 @@ export const login = async (req, res) => {
 // --------------------------
 export const registerShop = async (req, res) => {
   try {
+     console.log("REGISTER SHOP HIT");
+    console.log("Invitation:", req.body.invitationCode);
     const { userId, shopName, invitationCode, contact, address } = req.body;
     
   const validInvitationCodes = [
