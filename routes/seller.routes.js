@@ -14,28 +14,62 @@ const router = express.Router();
 
 
 
-router.post( "/register-shop", authMiddleware, upload.single("idDocument"), async (req, res) => { 
-  try { const user = await User.findById(req.user.id); 
-       if (!user)
-  {
-    return res.status(404).json({ message: "User not found" }); 
+router.post(
+  "/register-shop",
+  authMiddleware,
+  upload.single("idDocument"),
+  async (req, res) => {
+    try {
+
+      const validInvitationCodes = [
+        "MERCARI100",
+        "MERCARI200",
+        "MERCARI300",
+        "MERCARI400",
+        "MERCARI500",
+      ];
+
+      if (!validInvitationCodes.includes(req.body.invitationCode)) {
+        return res.status(400).json({
+          message: "Wrong invitation code",
+        });
+      }
+
+      const user = await User.findById(req.user.id);
+
+      if (!user) {
+        return res.status(404).json({
+          message: "User not found",
+        });
+      }
+
+      user.isSeller = true;
+      user.isApproved = false;
+
+      user.shop = {
+        name: req.body.shopName,
+        photo: "",
+        idDocument: req.file?.path,
+        invitationCode: req.body.invitationCode,
+        contact: req.body.emergencyContact,
+        address: req.body.address,
+      };
+
+      await user.save();
+
+      res.json({
+        message:
+          "Shop registration submitted successfully. Waiting for admin approval.",
+      });
+
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({
+        message: "Server error",
+      });
+    }
   }
-       // Update user as seller 
-       user.isSeller = true; 
-       user.isApproved = false; 
-       user.shop = { name: req.body.shopName, 
-       photo: "", 
-      // optional if you add shop photo later
-  idDocument: req.file?.path,
-  invitationCode: req.body.invitationCode,
-  contact: req.body.emergencyContact, 
-address: req.body.address };
-await user.save(); 
-res.json({ message: "Shop registration submitted successfully. Waiting for admin approval." });
-      } 
-  catch (error) { console.error(error); res.status(500).json({ message: "Server error" }); 
-                } 
-} );
+);
 
 
 
