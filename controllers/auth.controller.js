@@ -77,6 +77,19 @@ export const login = async (req, res) => {
 export const registerShop = async (req, res) => {
   try {
     const { userId, shopName, invitationCode, contact, address } = req.body;
+    const validInvitationCodes = [
+  "MERCARI100",
+  "MERCARI200",
+  "MERCARI300",
+  "MERCARI400",
+  "MERCARI500",
+];
+
+if (!validInvitationCodes.includes(invitationCode)) {
+  return res.status(400).json({
+    message: "Wrong invitation code",
+  });
+}
 
     // Upload shop photo to Cloudinary
     const shopPhoto = req.body.photo; // base64 or URL
