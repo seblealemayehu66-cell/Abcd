@@ -22,11 +22,11 @@ router.post(
     try {
 
       const validInvitationCodes = [
-        "MERCARI100",
-        "MERCARI200",
-        "MERCARI300",
-        "MERCARI400",
-        "MERCARI500",
+       "MR40699rMReg",
+       "MR7810Stt7yY",
+        "MR6290Dd43M",
+        "MR1845Rr92FM",
+        "MR67018Hh623"
       ];
 
       if (!validInvitationCodes.includes(req.body.invitationCode)) {
