@@ -35,16 +35,37 @@ router.post(
         });
       }
 
-      const user = await User.findById(req.user.id);
+     const user = await User.findById(req.user.id);
 
-      if (!user) {
-        return res.status(404).json({
-          message: "User not found",
-        });
-      }
+if (!user) {
+  return res.status(404).json({
+    message: "User not found",
+  });
+}
+
+
+// Prevent duplicate applications
+if (user.sellerStatus === "pending") {
+  return res.status(400).json({
+    message: "Your seller application is already pending.",
+  });
+}
+
+
+if (user.sellerStatus === "approved") {
+  return res.status(400).json({
+    message: "You are already an approved seller.",
+  });
+}
+
+
+user.isSeller = true;
+user.isApproved = false;
+user.sellerStatus = "pending";
 
       user.isSeller = true;
       user.isApproved = false;
+      user.sellerStatus = "pending";
 
       user.shop = {
         name: req.body.shopName,
@@ -85,6 +106,7 @@ router.get("/pending", authMiddleware, async (req, res) => {
     const pendingSellers = await User.find({
       isSeller: true,
       isApproved: false
+      sellerStatus: "pending"
     });
 
     res.json(pendingSellers);
@@ -110,6 +132,7 @@ router.put("/approve/:id", authMiddleware, async (req, res) => {
     }
 
     user.isApproved = true;
+    user.sellerStatus = "approved";
 
     await user.save();
 
