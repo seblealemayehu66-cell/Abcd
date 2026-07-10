@@ -105,7 +105,7 @@ router.get("/pending", authMiddleware, async (req, res) => {
 
     const pendingSellers = await User.find({
       isSeller: true,
-      isApproved: false
+      isApproved: false,
       sellerStatus: "pending"
     });
 
