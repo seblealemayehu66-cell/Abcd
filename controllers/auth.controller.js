@@ -107,10 +107,31 @@ if (!validInvitationCodes.includes(invitationCode)) {
     });
 
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
+
+if (!user) {
+  return res.status(404).json({ 
+    message: "User not found" 
+  });
+}
+
+
+// 🚫 STOP DUPLICATE SELLER APPLICATION
+if (user.sellerStatus === "pending") {
+  return res.status(400).json({
+    message: "Your seller application is already pending. Please wait for approval."
+  });
+}
+
+
+if (user.sellerStatus === "approved") {
+  return res.status(400).json({
+    message: "You are already an approved seller."
+  });
+}
 
     user.isSeller = true;
     user.isApproved = false; // pending admin approval
+    user.sellerStatus = "pending";
     user.shop = {
       name: shopName,
       photo: uploadedPhoto.secure_url,
@@ -173,7 +194,7 @@ export const getAllSellers = async (req, res) => {
       return res.status(403).json({ message: "Unauthorized" });
 
     const sellers = await User.find({ isSeller: true }).select(
-      "name email isApproved shop creditScore"
+      "name email isApproved shop  sellerStatus creditScore"
     );
     res.json(sellers);
   } catch (err) {
@@ -194,6 +215,7 @@ export const approveSeller = async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
 
     user.isApproved = true;
+    user.sellerStatus = "approved";
     await user.save();
     res.json({ message: "Seller approved", seller: user });
   } catch (err) {
@@ -209,7 +231,11 @@ export const rejectSeller = async (req, res) => {
     const user = await User.findById(req.params.userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    await user.remove(); // delete seller
+  user.isSeller = false;
+user.isApproved = false;
+user.sellerStatus = "rejected";
+
+await user.save(); // delete seller
     res.json({ message: "Seller rejected and removed" });
   } catch (err) {
     console.log(err);
@@ -243,6 +269,7 @@ export const loginAsSeller = async (req, res) => {
         isAdmin: seller.isAdmin,
         isSeller: seller.isSeller,
         isApproved: seller.isApproved,
+        sellerStatus: user.sellerStatus,
         creditScore: seller.creditScore || 0,
         shop: seller.shop,
       },
