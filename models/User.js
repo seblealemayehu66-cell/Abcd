@@ -94,7 +94,8 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    sellerStatus: {
+    
+  sellerStatus: {
   type: String,
   enum: ["none", "pending", "approved", "rejected"],
   default: "none",
