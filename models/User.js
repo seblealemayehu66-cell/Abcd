@@ -94,6 +94,11 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    sellerStatus: {
+  type: String,
+  enum: ["none", "pending", "approved", "rejected"],
+  default: "none",
+},
 creditScore: {
   type: Number,
   default: 0,
