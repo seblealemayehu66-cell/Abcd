@@ -194,7 +194,7 @@ export const getAllSellers = async (req, res) => {
       return res.status(403).json({ message: "Unauthorized" });
 
     const sellers = await User.find({ isSeller: true }).select(
-      "name email isApproved shop  sellerStatus creditScore"
+      "name email isApproved shop creditScore"
     );
     res.json(sellers);
   } catch (err) {
@@ -233,7 +233,6 @@ export const rejectSeller = async (req, res) => {
 
   user.isSeller = false;
 user.isApproved = false;
-user.sellerStatus = "rejected";
 
 await user.save(); // delete seller
     res.json({ message: "Seller rejected and removed" });
@@ -269,7 +268,6 @@ export const loginAsSeller = async (req, res) => {
         isAdmin: seller.isAdmin,
         isSeller: seller.isSeller,
         isApproved: seller.isApproved,
-        sellerStatus: user.sellerStatus,
         creditScore: seller.creditScore || 0,
         shop: seller.shop,
       },
