@@ -48,9 +48,6 @@ router.post("/send", authMiddleware, async (req, res) => {
 /* =========================
    GET CHAT
 ========================= */
-/* =========================
-   GET CONVERSATIONS
-========================= */
 router.get("/", authMiddleware, async (req, res) => {
   try {
     const currentUser = req.user.id;
@@ -68,17 +65,23 @@ router.get("/", authMiddleware, async (req, res) => {
 
     const conversations = [];
 
-    messages.forEach((msg) => {
+    for (const msg of messages) {
+
+      if (!msg.productId) continue;
+
       const otherUser =
         msg.sender._id.toString() === currentUser
           ? msg.receiver
           : msg.sender;
 
-      const exists = conversations.find(
-        (c) =>
+      if (!otherUser) continue;
+
+      const exists = conversations.find((c) => {
+        return (
           c.user._id.toString() === otherUser._id.toString() &&
           c.product._id.toString() === msg.productId._id.toString()
-      );
+        );
+      });
 
       if (!exists) {
         conversations.push({
@@ -87,11 +90,12 @@ router.get("/", authMiddleware, async (req, res) => {
           lastMessage: msg,
         });
       }
-    });
+    }
 
     res.json(conversations);
 
   } catch (err) {
+    console.log("GET CONVERSATIONS ERROR");
     console.log(err);
     res.status(500).json({
       message: err.message,
