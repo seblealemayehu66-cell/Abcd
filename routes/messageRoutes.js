@@ -48,6 +48,56 @@ router.post("/send", authMiddleware, async (req, res) => {
 /* =========================
    GET CHAT
 ========================= */
+/* =========================
+   GET CONVERSATIONS
+========================= */
+router.get("/", authMiddleware, async (req, res) => {
+  try {
+    const currentUser = req.user.id;
+
+    const messages = await Message.find({
+      $or: [
+        { sender: currentUser },
+        { receiver: currentUser },
+      ],
+    })
+      .populate("sender", "name image")
+      .populate("receiver", "name image")
+      .populate("productId", "name images")
+      .sort({ createdAt: -1 });
+
+    const conversations = [];
+
+    messages.forEach((msg) => {
+      const otherUser =
+        msg.sender._id.toString() === currentUser
+          ? msg.receiver
+          : msg.sender;
+
+      const exists = conversations.find(
+        (c) =>
+          c.user._id.toString() === otherUser._id.toString() &&
+          c.product._id.toString() === msg.productId._id.toString()
+      );
+
+      if (!exists) {
+        conversations.push({
+          user: otherUser,
+          product: msg.productId,
+          lastMessage: msg,
+        });
+      }
+    });
+
+    res.json(conversations);
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      message: err.message,
+    });
+  }
+});
 router.get("/:userId/:productId", authMiddleware, async (req, res) => {
   try {
 
