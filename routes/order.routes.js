@@ -5,8 +5,11 @@ import {
   getSellerOrders,
   getInvoice,
   pickOrder,
-  getPurchaseHistory
+  getPurchaseHistory,
+  getProcessingOrders,
+  deliverOrder,
 } from "../controllers/order.controller.js";
+import adminAuth from "../middleware/adminAuth.js";
 
 import authMiddleware from "../middleware/authMiddleware.js"; // for customers
 import { sellerAuth } from "../middleware/sellerAuth.js"; // for sellers
@@ -38,5 +41,24 @@ router.get("/seller/orders", sellerAuth, getSellerOrders);
 ========================= */
 router.put("/pick/:id", sellerAuth, pickOrder);
 router.get("/user", authMiddleware, getPurchaseHistory);
+/* =========================
+   ✅ ADMIN PROCESSING ORDERS
+========================= */
+
+router.get(
+  "/admin/orders/processing",
+  adminAuth,
+  getProcessingOrders
+);
+
+/* =========================
+   ✅ ADMIN DELIVER ORDER
+========================= */
+
+router.put(
+  "/admin/orders/:id/deliver",
+  adminAuth,
+  deliverOrder
+);
 
 export default router;
