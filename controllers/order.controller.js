@@ -537,99 +537,157 @@ export const pickOrder = async (req, res) => {
 
 export const deliverOrder = async (req, res) => {
   try {
-    const orderId = req.params.id;
 
-    const order = await Order.findById(orderId)
-      .populate("customerId")
-      .populate("sellerId")
-      .populate("productId");
+    const order = await Order.findById(req.params.id);
 
     if (!order) {
       return res.status(404).json({
-        success: false,
         message: "Order not found",
       });
     }
 
+
     if (order.status !== "processing") {
       return res.status(400).json({
-        success: false,
-        message: "Only processing orders can be delivered",
+        message: "Order is not processing",
       });
     }
 
-    const customer = await User.findById(order.customerId);
+
+    const customer = await User.findById(
+      order.customerId
+    );
+
+
+    const seller = await User.findById(
+      order.sellerId
+    );
+
 
     if (!customer) {
       return res.status(404).json({
-        success: false,
         message: "Customer not found",
       });
     }
 
-    // =========================
-    // CREATE WALLET IF MISSING
-    // =========================
 
-    if (!customer.wallet) {
-      customer.wallet = {
-        balances: {},
-        transactions: [],
-      };
+    if (!seller) {
+      return res.status(404).json({
+        message: "Seller not found",
+      });
     }
 
-    if (!customer.wallet.balances) {
-      customer.wallet.balances = {};
-    }
 
-    if (!customer.wallet.transactions) {
-      customer.wallet.transactions = [];
-    }
 
     // =========================
-    // RETURN FROZEN MONEY
+    // RETURN CUSTOMER FROZEN MONEY
     // =========================
 
-    const amount = Number(order.frozenAmount || 0);
+    const frozenAmount =
+      Number(order.frozenAmount || 0);
+
 
     customer.wallet.balances.USDT =
-      (customer.wallet.balances.USDT || 0) + amount;
+      (customer.wallet.balances.USDT || 0)
+      + frozenAmount;
+
 
     customer.wallet.transactions.push({
+
       coin: "USDT",
+
       type: "credit",
-      amount: amount,
-      note: `Frozen money returned after delivery (${order._id})`,
+
+      amount: frozenAmount,
+
+      note:
+      `Frozen money returned order ${order._id}`
+
     });
+
 
     customer.markModified("wallet");
 
     await customer.save();
+
+
+
+    // =========================
+    // RETURN SELLER BUY MONEY
+    // =========================
+
+    const sellerMoney =
+      Number(order.buyPrice || 0);
+
+
+    seller.wallet.balances.USDT =
+      (seller.wallet.balances.USDT || 0)
+      + sellerMoney;
+
+
+    seller.wallet.transactions.push({
+
+      coin:"USDT",
+
+      type:"credit",
+
+      amount:sellerMoney,
+
+      note:
+      `Order delivery refund ${order._id}`
+
+    });
+
+
+    seller.markModified("wallet");
+
+    await seller.save();
+
+
 
     // =========================
     // UPDATE ORDER
     // =========================
 
     order.status = "delivered";
+
     order.deliveryDate = new Date();
+
     order.frozenAmount = 0;
+
 
     await order.save();
 
-    return res.status(200).json({
-      success: true,
-      message: "Order delivered successfully.",
-      order,
+
+
+    return res.json({
+
+      success:true,
+
+      message:
+      "Delivered successfully. Wallets updated.",
+
+      order
+
     });
 
-  } catch (err) {
-    console.error("DELIVER ORDER ERROR:", err);
+
+  } catch(err){
+
+    console.log(
+      "DELIVERY ERROR:",
+      err
+    );
+
 
     return res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: err.message,
+
+      message:"Server error",
+
+      error:err.message
+
     });
+
   }
 };
 /* =========================
