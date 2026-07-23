@@ -632,3 +632,35 @@ export const deliverOrder = async (req, res) => {
     });
   }
 };
+/* =========================
+   ✅ GET PROCESSING ORDERS (ADMIN)
+========================= */
+
+export const getProcessingOrders = async (req, res) => {
+  try {
+    const orders = await Order.find({
+      status: "processing",
+    })
+      .populate("productId")
+      .populate("customerId", "name email phone")
+      .populate("sellerId", "name email phone")
+      .populate("buyerId", "name email");
+
+    return res.status(200).json({
+      success: true,
+      total: orders.length,
+      orders,
+    });
+
+  } catch (err) {
+
+    console.error("GET PROCESSING ORDERS ERROR:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: err.message,
+    });
+
+  }
+};
