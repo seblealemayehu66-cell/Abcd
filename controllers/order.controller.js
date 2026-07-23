@@ -538,7 +538,11 @@ export const pickOrder = async (req, res) => {
 export const deliverOrder = async (req, res) => {
   try {
 
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findById(req.params.id)
+      .populate("sellerId")
+      .populate("customerId")
+      .populate("productId");
+
 
     if (!order) {
       return res.status(404).json({
@@ -547,28 +551,18 @@ export const deliverOrder = async (req, res) => {
     }
 
 
+    // Only processing orders can be delivered
     if (order.status !== "processing") {
       return res.status(400).json({
-        message: "Order is not processing",
+        message: "Order is not ready for delivery",
       });
     }
 
-
-    const customer = await User.findById(
-      order.customerId
-    );
 
 
     const seller = await User.findById(
-      order.sellerId
+      order.sellerId._id
     );
-
-
-    if (!customer) {
-      return res.status(404).json({
-        message: "Customer not found",
-      });
-    }
 
 
     if (!seller) {
@@ -579,79 +573,84 @@ export const deliverOrder = async (req, res) => {
 
 
 
-    // =========================
-    // RETURN CUSTOMER FROZEN MONEY
-    // =========================
-
-    const frozenAmount =
-      Number(order.frozenAmount || 0);
-
-
-    customer.wallet.balances.USDT =
-      (customer.wallet.balances.USDT || 0)
-      + frozenAmount;
+    /*
+    =================================
+    RETURN ALL FROZEN MONEY TO SELLER
+    INCLUDING PROFIT
+    =================================
+    */
 
 
-    customer.wallet.transactions.push({
+    const frozenMoney =
+      Number(
+        order.frozenAmount ||
+        order.price ||
+        0
+      );
+
+
+    if (!seller.wallet) {
+      seller.wallet = {
+        balances: {},
+        transactions: [],
+      };
+    }
+
+
+    if (!seller.wallet.balances) {
+      seller.wallet.balances = {};
+    }
+
+
+    if (!seller.wallet.transactions) {
+      seller.wallet.transactions = [];
+    }
+
+
+
+    // Add full frozen amount back
+
+    seller.wallet.balances.USDT =
+      (seller.wallet.balances.USDT || 0)
+      + frozenMoney;
+
+
+
+    seller.wallet.transactions.push({
 
       coin: "USDT",
 
       type: "credit",
 
-      amount: frozenAmount,
+      amount: frozenMoney,
 
       note:
-      `Frozen money returned order ${order._id}`
+      `Delivered order ${order._id} - frozen money released`
 
     });
 
-
-    customer.markModified("wallet");
-
-    await customer.save();
-
-
-
-    // =========================
-    // RETURN SELLER BUY MONEY
-    // =========================
-
-    const sellerMoney =
-      Number(order.buyPrice || 0);
-
-
-    seller.wallet.balances.USDT =
-      (seller.wallet.balances.USDT || 0)
-      + sellerMoney;
-
-
-    seller.wallet.transactions.push({
-
-      coin:"USDT",
-
-      type:"credit",
-
-      amount:sellerMoney,
-
-      note:
-      `Order delivery refund ${order._id}`
-
-    });
 
 
     seller.markModified("wallet");
+
 
     await seller.save();
 
 
 
-    // =========================
-    // UPDATE ORDER
-    // =========================
+
+    /*
+    ==========================
+    UPDATE ORDER
+    ==========================
+    */
+
 
     order.status = "delivered";
 
     order.deliveryDate = new Date();
+
+    // remove frozen amount after release
 
     order.frozenAmount = 0;
 
@@ -662,27 +661,33 @@ export const deliverOrder = async (req, res) => {
 
     return res.json({
 
-      success:true,
+      success: true,
 
       message:
-      "Delivered successfully. Wallets updated.",
+      "Order delivered successfully. Full frozen money returned to seller wallet.",
+
+      releasedAmount: frozenMoney,
 
       order
 
     });
 
 
-  } catch(err){
 
-    console.log(
-      "DELIVERY ERROR:",
+  } catch (err) {
+
+
+    console.error(
+      "DELIVER ORDER ERROR:",
       err
     );
 
 
     return res.status(500).json({
 
-      message:"Server error",
+      success:false,
+
+      message:"Server error while delivering order",
 
       error:err.message
 
