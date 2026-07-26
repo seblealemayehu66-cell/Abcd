@@ -546,9 +546,9 @@ export const getSingleProduct = async (req, res) => {
     }
 
     // ✅ FIND SELLER PRODUCT
-    const sellerProduct = await SellerProduct.findOne({
-      productId: product._id
-    }).populate("sellerId", "name email");
+    const sellerProducts = await SellerProduct.find({
+  productId: product._id
+}).populate("sellerId", "name email shop");
 
     const orderCount = await Order.countDocuments({
       productId: req.params.id
@@ -563,19 +563,23 @@ export const getSingleProduct = async (req, res) => {
     res.json({
       ...product.toObject(),
 
-      // ✅ IMPORTANT
-      sellerProductId: sellerProduct?._id || null,
+    sellerProductId: sellerProducts[0]?._id || null,
 
-      // ✅ IMPORTANT
-      sellerId: sellerProduct?.sellerId?._id || null,
+sellerId: sellerProducts[0]?.sellerId?._id || null,
 
-      // ✅ OPTIONAL
-      seller: sellerProduct?.sellerId || null,
+sellerPrice: sellerProducts[0]?.price || product.price,
 
-      // ✅ SELLER PRICE/STOCK
-      sellerPrice: sellerProduct?.price || product.price,
+sellerStock: sellerProducts[0]?.stock || product.stock,
 
-      sellerStock: sellerProduct?.stock || product.stock,
+sellers: sellerProducts.map((sp) => ({
+  sellerProductId: sp._id,
+  sellerId: sp.sellerId._id,
+  name: sp.sellerId.name,
+  email: sp.sellerId.email,
+  shop: sp.sellerId.shop?.name || "",
+  price: sp.price,
+  stock: sp.stock,
+})),
 
       orderCount,
 
