@@ -90,20 +90,41 @@ export const getProductsByShopName = async (req, res) => {
     });
 
     // 3. FORMAT RESPONSE (IMPORTANT FOR FRONTEND)
-    const products = sellerProducts
-      .filter((p) => p.productId)
-      .map((p) => ({
+ // 3. FORMAT RESPONSE (WITH ALL SELLERS)
+const products = await Promise.all(
+  sellerProducts
+    .filter((p) => p.productId)
+    .map(async (p) => {
+
+      // Find ALL sellers that published this product
+      const allSellers = await SellerProduct.find({
+        productId: p.productId._id
+      }).populate("sellerId", "name shop");
+
+      return {
         _id: p._id,
         price: p.price,
         stock: p.stock,
+
         productId: {
           _id: p.productId._id,
           name: p.productId.name,
           images: p.productId.images,
           category: p.productId.category,
           description: p.productId.description
-        }
-      }));
+        },
+
+        sellers: allSellers.map((seller) => ({
+          sellerId: seller.sellerId._id,
+          sellerProductId: seller._id,
+          name: seller.sellerId.name,
+          shop: seller.sellerId.shop?.name || "",
+          price: seller.price,
+          stock: seller.stock
+        }))
+      };
+    })
+);
 
     res.json({
       shop: seller.shop,
