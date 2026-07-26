@@ -267,27 +267,49 @@ export const processPayment = async (req, res) => {
          CREATE ORDER
       ========================= */
 
-     const order = await Order.create({
+    /* =========================
+   CREATE ORDER
+========================= */
+
+const sellerProductId =
+  item.sellerProductId?._id ||
+  item.sellerProductId ||
+  null;
+
+// Get the seller directly from the selected SellerProduct
+let sellerId = null;
+
+if (sellerProductId) {
+  const selectedSellerProduct = await SellerProduct.findById(
+    sellerProductId
+  );
+
+  if (!selectedSellerProduct) {
+    return res.status(400).json({
+      message: "Selected seller product not found",
+    });
+  }
+
+  sellerId = selectedSellerProduct.sellerId;
+  finalPrice = selectedSellerProduct.price;
+}
+
+const order = await Order.create({
   buyerId: userId,
 
   customerId: userId,
 
   productId: product._id,
 
-  // ✅ IMPORTANT
-  sellerProductId:
-    item.sellerProductId?._id ||
-    item.sellerProductId ||
-    null,
+  sellerProductId,
 
-  sellerId: finalSellerId,
+  sellerId,
 
   quantity: item.quantity,
 
   price: finalPrice * item.quantity,
 
-  buyPrice:
-    finalPrice * 0.8 * item.quantity,
+  buyPrice: finalPrice * 0.8 * item.quantity,
 
   frozenAmount: 0,
 
@@ -299,7 +321,6 @@ export const processPayment = async (req, res) => {
 
   shippingAddress: shipping,
 });
-
       orders.push(order);
     }
 
