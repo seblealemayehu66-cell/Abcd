@@ -51,11 +51,26 @@ if (user.sellerStatus === "pending") {
   });
 }
 
-
 if (user.sellerStatus === "approved") {
   return res.status(400).json({
     message: "You are already an approved seller.",
   });
+}
+
+// If rejected, clear the old application so they can apply again
+if (user.sellerStatus === "rejected") {
+  user.shop = {
+    name: "",
+    photo: "",
+    idDocument: "",
+    invitationCode: "",
+    contact: "",
+    address: "",
+  };
+
+  user.isSeller = false;
+  user.isApproved = false;
+  user.sellerStatus = "";
 }
 
 
@@ -143,6 +158,50 @@ router.put("/approve/:id", authMiddleware, async (req, res) => {
 
   } catch (error) {
     res.status(500).json({ message: "Server error" });
+  }
+});
+// Admin: Reject seller
+router.put("/reject/:id", authMiddleware, async (req, res) => {
+  try {
+    if (!req.user.isAdmin) {
+      return res.status(403).json({
+        message: "Unauthorized",
+      });
+    }
+
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    // Allow the user to apply again
+    user.isSeller = false;
+    user.isApproved = false;
+    user.sellerStatus = "rejected";
+
+    // Remove previous application
+    user.shop = {
+      name: "",
+      photo: "",
+      idDocument: "",
+      invitationCode: "",
+      contact: "",
+      address: "",
+    };
+
+    await user.save();
+
+    res.json({
+      message: "Seller rejected. User can submit a new application.",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Server error",
+    });
   }
 });
 
