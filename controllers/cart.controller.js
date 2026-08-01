@@ -254,6 +254,111 @@ export const removeCartItem = async (req, res) => {
     });
   }
 };
+/* =========================
+   ✅ UPDATE CART ITEM
+========================= */
+
+export const updateCartItem = async (req, res) => {
+  try {
+
+    const userId = req.user.id;
+
+    const { id } = req.params;
+
+    const {
+      quantity,
+      size,
+      color
+    } = req.body;
+
+
+    const cart = await Cart.findOne({
+      userId
+    });
+
+
+    if (!cart) {
+      return res.status(404).json({
+        message:"Cart not found"
+      });
+    }
+
+
+    const item = cart.items.find(
+      item =>
+        item._id.toString() === id
+    );
+
+
+    if (!item) {
+      return res.status(404).json({
+        message:"Cart item not found"
+      });
+    }
+
+
+    // update quantity
+    if(quantity !== undefined){
+
+      if(quantity < 1){
+        return res.status(400).json({
+          message:"Quantity must be at least 1"
+        });
+      }
+
+      item.quantity = Number(quantity);
+    }
+
+
+    // update options
+    if(size !== undefined){
+      item.size = size;
+    }
+
+
+    if(color !== undefined){
+      item.color = color;
+    }
+
+
+    await cart.save();
+
+
+    const updatedCart =
+      await Cart.findById(cart._id)
+
+      .populate("items.productId")
+
+      .populate(
+        "items.sellerId",
+        "name email"
+      )
+
+      .populate(
+        "items.sellerProductId"
+      );
+
+
+    res.json({
+      success:true,
+      message:"Cart updated",
+      cart:updatedCart
+    });
+
+
+  } catch(err){
+
+    console.log(
+      "UPDATE CART ERROR:",
+      err
+    );
+
+    res.status(500).json({
+      message:"Server error"
+    });
+
+  }
+};
 
 /* =========================
    ✅ CLEAR CART
