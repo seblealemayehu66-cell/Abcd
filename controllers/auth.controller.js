@@ -225,20 +225,55 @@ export const approveSeller = async (req, res) => {
 };
 export const rejectSeller = async (req, res) => {
   try {
-    if (!req.user.isAdmin)
-      return res.status(403).json({ message: "Unauthorized" });
+    if (!req.user.isAdmin) {
+      return res.status(403).json({
+        message: "Unauthorized",
+      });
+    }
 
     const user = await User.findById(req.params.userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
 
-  user.isSeller = false;
-user.isApproved = false;
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
 
-await user.save(); // delete seller
-    res.json({ message: "Seller rejected and removed" });
+
+    // Reject seller application
+    user.isSeller = false;
+    user.isApproved = false;
+    user.sellerStatus = "rejected";
+
+
+    // Optional: remove old shop application data
+    user.shop = {
+      name: "",
+      photo: "",
+      idDocument: "",
+      invitationCode: "",
+      contact: "",
+      address: "",
+    };
+
+
+    await user.save();
+
+
+    res.json({
+      message: "Seller rejected successfully",
+      sellerStatus: user.sellerStatus,
+    });
+
+
   } catch (err) {
+
     console.log(err);
-    res.status(500).json({ message: "Server error" });
+
+    res.status(500).json({
+      message: "Server error",
+    });
+
   }
 };
 // Admin login as seller
